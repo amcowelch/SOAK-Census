@@ -1,0 +1,32 @@
+---
+title: "soak_census_2024"
+author: "amanda welch"
+date: "7/1/2024"
+output: html_document
+---
+
+This document was created by Amanda Welch, M.S., Hannah Kendall, and Tracy Mehoke.
+
+All data was collected on site between May 22 and May 24, 2024 by sampling vehicles upon entry. A total of 941 surveys were collected. Box office recorded 2,328 tickets used for entry.
+
+Data was input by volunteers into Qualtrics and raw numbers were downloaded for analysis.
+
+Analysis and visualization done in R and RStudio.
+  RStudio Team (2022). RStudio: Integrated Development Environment for R. RStudio, PBC,
+  Boston, MA URL http://www.rstudio.com/.
+
+For questions or comments: census@soakpdx.com or tuna@soakpdx.com
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+options(warn = -1)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(stringr)
+library(RColorBrewer)
+library(scales)
+library(ggrepel)
+library(tidyverse)
+```
+
