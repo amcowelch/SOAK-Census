@@ -5,7 +5,7 @@ date: "7/1/2024"
 output: html_document
 ---
 
-This document was created by Amanda Welch, M.S., Hannah Kendall, and Tracy Mehoke.
+This document was created by Amanda Welch, M.S.
 
 All data was collected on site between May 22 and May 24, 2024 by sampling vehicles upon entry. A total of 941 surveys were collected. Box Office recorded 2,328 tickets used for entry.
 
@@ -303,10 +303,9 @@ attend_long %>%
   theme_minimal()
 ```
 
-
 ```{r echo=FALSE}
 # table showing stats instead of chart
-subset_attend <- attend_count_df[, c(1, 2, 4)]
+subset_attend <- attend_count_df[, c('attendance', 'count_24', 'percent_round_24')]
 
 colnames(subset_attend)[1] <- "Previous years attended"
 colnames(subset_attend)[2] <- "Count"
@@ -315,10 +314,10 @@ colnames(subset_attend)[3] <- "Percent"
 knitr::kable(subset_attend)
 ```
 
-The bar chart and pie chart above are 2 different visualizations of the same information. The bar chart shows us the count of how many times people have attended SOAK before, whereas the pie chart is the percent of each group.
+The bar chart and pie chart above are 2 different visualizations of the same information. The bar chart shows us the count of how many times people have attended SOAK before, whereas the pie chart is the percent of each group.The line plot demonstrates the changes in each attendance category over one year.
 
 
-According to the Burning Man Census Report, in 2022 the population had 28.3% first-time burners (Shev, A.B., Morency A., and the 2022 Census Lab.) in comparison to SOAK's 43.2% fist-time SOAKers. At the time of reporting, the 2023 Burning Man Census data has not been published.
+According to the Burning Man Census Report, the population had 28.3% first-time burners in 2022, with a huge increase to 43.9% first-timers in 2023 (Shev, A.B., Morency A., and the 2023 Census Lab) in comparison to SOAK's 43.2% fist-time SOAKer in 2022 and a slight decrease to 40.6% in 2023.
 
 # Sociodemographic Characteristics
 
