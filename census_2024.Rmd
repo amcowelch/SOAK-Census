@@ -33,12 +33,18 @@ library(tidyverse)
 
 ```{r}
 # set working directory
-setwd("C:/Users/Amanda Welch/Documents/GitHub/SOAK-Census")
+# setwd("C:/Users/Amanda Welch/Documents/GitHub/SOAK-Census") #on Amanda's
+setwd("/Users/airtracy/Documents/GitHub/SOAK-Census") #on Tracy's
 ```
 
-```{r data import}
+```{r 2023 data import}
 # import data
-data <- read.csv("C:/Users/Amanda Welch/Desktop/SOAK 2023/census_data.csv") 
+# On Amanda's:
+# data <- read.csv("C:/Users/Amanda Welch/Desktop/SOAK 2023/census_data.csv")
+
+# On Tracy's:
+# 2023 Census data:
+ data <- read.csv("/Users/airtracy/Documents/SOAK-Census_copy/census_data.csv") 
 
 # convert column names to lower case
 data <- clean_names(data)
@@ -48,11 +54,18 @@ data <- data[-(1:2),]
 ```
 
 ```{r import 2024 data}
-data_2024 <- read.csv("C:/Users/Amanda Welch/Desktop/SOAK 2024/SOAK 2024_RawData.csv")
+# On Amanda's:
+#data_2024 <- read.csv("C:/Users/Amanda Welch/Desktop/SOAK 2024/SOAK 2024_RawData.csv")
+
+# On Tracy's:
+# 2024 Census data:
+data_2024 <- read.csv("/Users/airtracy/Documents/SOAK-Census_copy/SOAK\ 2024_RawData.csv")
 ```
 
 ```{r clean 2024 data}
+# convert column names to lower case
 data_2024 <- clean_names(data_2024)
+#remove 1st 2 rows with unnecessary info
 data_2024 <- data_2024[-(1:2),]
 data_2024 <- data_2024[, !names(data_2024) %in%
                c("start_date","end_date","status","ip_address","progress","duration_in_seconds",
