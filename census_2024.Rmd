@@ -392,15 +392,25 @@ colnames(ages_df)[6] <- "2024 Percent"
 ```{r age table }
 # table showing stats instead of chart
 subset_age <- ages_df[, c('Age group', '2023 Percent', "Age group 2024", "2024 Percent")]
-# table
-knitr::kable(subset_age)
+
 ```
 
+```{r}
+# custom ranking order to ensure "Under 13" is first and "Omitted" is last
+subset_age_reordered <- subset_age %>%
+  mutate(order_rank = case_when(
+    `Age group` == "Under 13" ~ 1,       # "Under 13" is ranked first
+    `Age group` == "Omitted" ~ 3,        # "Omitted" is ranked last
+    TRUE ~ 2                            # All other rows are ranked in the middle
+  )) %>%
+  arrange(order_rank) %>%               # Order by custom rank
+  select(-order_rank)                   # Remove the ranking column
 
+# Show the reordered table
+knitr::kable(subset_age_reordered, row.names = FALSE)
+```
 
-
-
-
+In 2024, the majority of participants were between ages 25 and 44. Ages 35-44 were the highest reported age. Most age groups remained similar from 2023 to 2024, but there was a decrease in participants ages 25-34, increase in participants in ages 35-44, and an increase in participants ages 45-54. 
 
 
 
