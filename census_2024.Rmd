@@ -15,10 +15,13 @@ Analysis and visualization done in R and RStudio.
   RStudio Team (2022). RStudio: Integrated Development Environment for R. RStudio, PBC,
   Boston, MA URL http://www.rstudio.com/.
 
+Code and data available on Github at https://github.com/amcowelch/SOAK-Census
 For questions or comments: census@soakpdx.com or tuna@soakpdx.com
 
-```{r setup}
-knitr::opts_chunk$set(echo = TRUE)
+
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(echo = FALSE)
 options(warn = -1)
 library(ggplot2)
 library(janitor)
@@ -208,21 +211,6 @@ attend_count_df <- subset(attend_count_df, select = -attendance_24)
 rm(attend_count_df_24)
 ```
 
-```{r plot attendance 2023}
-# plot which years were reported attended
-# occurrences_df %>% 
-#   ggplot(aes(x = attend_unlist,
-#              y = Freq)) +
-#   geom_bar(stat = "identity",
-#            color = "black",
-#            fill = "turquoise") +
-#   labs(x = "Year attended",
-#        y = "Number of participants",
-#        title = "\nHow many participants were at which years") +
-#   theme_minimal() +
-#   theme(axis.text.x = element_text(angle = 45, hjust = 1))
-```
-
 ```{r plot attendance 2024}
 # plot which years were reported attended
 occurrences_df_24 %>% 
@@ -235,7 +223,11 @@ occurrences_df_24 %>%
        y = "Number of participants",
        title = "\nHow many participants were at which years") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # Tighter plot margins
+        axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+        axis.title.y = element_text(vjust = 0.5),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5))
 ```
 
 A total of 376 participants (40.6% of participants) reported 2024 as their first time attending SOAK, which is a decrease from 2023 which had 43.2% of the population report themselves as first timers.
@@ -253,7 +245,11 @@ attend_count_df %>%
             position = position_stack(vjust = 0.5), 
             size = 3.5, color = "black") +
   guides(fill = FALSE) + #remove legend
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # Tighter plot margins
+        axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+        axis.title.y = element_text(vjust = 0.5),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5))
 ```
 
 ```{r pie chart 2024}
@@ -278,10 +274,11 @@ attend_count_df %>%
   guides(fill = guide_legend(title = "Previous years attended")) +
   ggtitle("\n\n\nAttendance history") +
   labs(caption = paste(participants, "participants, excluding omitted responses \n")) +
-  theme_void()
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
 ```
 
-```{r}
+```{r echo=FALSE}
 # Reshape the data into long format
 attend_long <- attend_count_df %>%
   pivot_longer(cols = c("percent", "percent_24"), 
@@ -290,7 +287,7 @@ attend_long <- attend_count_df %>%
   mutate(year = recode(year, "percent" = "2023", "percent_24" = "2024"))
 ```
 
-``` {r longitudinal attendance}
+``` {r longitudinal attendance, echo=F}
 # Create spaghetti plot
 attend_long %>% 
   ggplot(aes(x = year, y = percent, group = attendance, color = attendance)) +
@@ -300,86 +297,113 @@ attend_long %>%
        x = "Year",
        y = "Percentage",
        color = "How many times \nattended before 2024") +
-  theme_minimal()
+  theme_minimal() +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
 ```
 
 ```{r echo=FALSE}
 # table showing stats instead of chart
-subset_attend <- attend_count_df[, c('attendance', 'count_24', 'percent_round_24')]
+subset_attend <- attend_count_df[, c('attendance','percent_round', 'percent_round_24')]
 
 colnames(subset_attend)[1] <- "Previous years attended"
-colnames(subset_attend)[2] <- "Count"
-colnames(subset_attend)[3] <- "Percent"
+colnames(subset_attend)[2] <- "2023 percent"
+colnames(subset_attend)[3] <- "2024 percent"
 
 knitr::kable(subset_attend)
 ```
 
-The bar chart and pie chart above are 2 different visualizations of the same information. The bar chart shows us the count of how many times people have attended SOAK before, whereas the pie chart is the percent of each group.The line plot demonstrates the changes in each attendance category over one year.
+The bar chart and pie chart above are 2 different visualizations of the same information. The bar chart shows us the count of how many times people have attended SOAK before, whereas the pie chart is the percent of each group. The line plot demonstrates the changes in each attendance category over one year.
 
 
-According to the Burning Man Census Report, the population had 28.3% first-time burners in 2022, with a huge increase to 43.9% first-timers in 2023 (Shev, A.B., Morency A., and the 2023 Census Lab) in comparison to SOAK's 43.2% fist-time SOAKer in 2022 and a slight decrease to 40.6% in 2023.
+According to the Burning Man Census Report, the population had 28.3% first-time burners in 2022, with an increase to 43.9% first-timers in 2023 (Shev, A.B., Morency A., and the 2023 Census Lab) in comparison to SOAK's 43.2% fist-time SOAKer in 2023 and a slight decrease to 40.6% in 2024.
 
 # Sociodemographic Characteristics
 
 ### Age and Gender
 
-```{r age,  }
-# create df counting the number of participants in each age group
+```{r age,  echo=FALSE}
+# create df counting the number of participants in each age group for 2023
 age_counts <- table(data$age)
 age <- as.data.frame(age_counts)
 age$Var1 <- factor(age$Var1, levels = c("Under 13", "13-17", "18-24",
                                         "25-34", "35-44", "45-54", "55-64",
                                         "Over 65", "Omitted"))
+age$Percent <- round((age$Freq / sum(age$Freq) * 100), digits = 1)
 
+age_counts_24 <- table(data_2024$age)
+age_24 <- as.data.frame(age_counts_24)
+age_24$Var1 <- factor(age_24$Var1, levels = c("Under 13", "13-17", "18-20",
+                                              "21-24", "25-34", "35-44", "45-54", "55-64",
+                                              "Over 65", "Omitted"))
+age_24$Percent <- round((age_24$Freq / sum(age_24$Freq) * 100), digits = 1)
 
-# gender identity is tricky, as some people chose multiple identities
-# for those who selected multiple, save new variable that replaces multiple choices with the single 
-# answer of "multiple identities"
-# plotting all responses would be difficult to visualize well
-data$gender_updated <- ifelse(grepl(",", data$gender), "Multiple identities", data$gender)
-age_gender_counts <- table(data$age, data$gender_updated)
-age_gender_counts_df <- as.data.frame(age_gender_counts)
-colnames(age_gender_counts_df) <- c("age", "gender", "count")
-
-# drop counts of 0 and omitted responses
-age_gender_filtered_df <- age_gender_counts_df[age_gender_counts_df$count != 0, ]
-age_gender_filtered_df <- age_gender_filtered_df[age_gender_filtered_df$age != "Omitted", ]
-age_gender_filtered_df <- age_gender_filtered_df[age_gender_filtered_df$gender != "Omitted", ]
-
-# change under 13 to 12 and below for ordering on the graph
-age_gender_filtered_df$age <- gsub("Under 13", "0-12", age_gender_filtered_df$age)
 ```
 
-```{r age and gender plots }
-# plot ages and gender
-age %>% 
+```{r age plot}
+# plot ages
+age_24 %>% 
   ggplot(aes(x = Var1,
              y = Freq,
              fill = Var1)) +
   geom_bar(stat = "identity",
            color = "black") +
-  scale_fill_brewer(name = "Age group counts",
-                    palette = "RdYlGn",
-                    labels = c("7","7","12","238",
-                               "260", "97", "26", "15", "8")) +
+  scale_fill_brewer(name = "Age ranges",
+                    palette = "RdYlGn") +
   labs(x = "Age range",
        y = "Number of participants",
        title = "\nAge of participants") +
-  theme_minimal() 
+  theme_minimal() +
+    theme(legend.position = "none",
+          plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5)
+  )
+
+```
+
+```{r longitudinal age}
+# Create a new row with NA values
+new_row <- data.frame(Var1 = NA, Freq = NA, Percent = NA)
+
+# Insert the new row at the second index
+age <- rbind(age[1, ], new_row, age[-1, ])
+
+ages_df <- cbind(age, age_24)
+#attend_count_df <- subset(attend_count_df, select = -attendance_24)
+
+colnames(ages_df)[1] <- "Age group"
+colnames(ages_df)[2] <- "2023 Count"
+colnames(ages_df)[3] <- "2023 Percent"
+colnames(ages_df)[4] <- "Age group 2024"
+colnames(ages_df)[5] <- "2024 Count"
+colnames(ages_df)[6] <- "2024 Percent"
 ```
 
 ```{r age table }
+# table showing stats instead of chart
+subset_age <- ages_df[, c('Age group', '2023 Percent', "Age group 2024", "2024 Percent")]
 # table
-age$Percent <- round((age$Freq / sum(age$Freq) * 100), digits = 1)
-colnames(age)[1] <- "Age group"
-colnames(age)[2] <- "Count"
-
-knitr::kable(age)
+knitr::kable(subset_age)
 ```
 
-The vast majority (74.3%) of SOAK participants range from age 25 to 44. Ages 25-34 and 35-44 are similarly reported, with 45-54 being the 3rd most common age group at 14.5% of participants. All other age groups make up 9.9% of the population. 
 
-This age data tracks with the 2022 Burning Man median age of arrival. The median age was 37 years (Shev, A.B., Morency A., and the 2022 Census Lab.).
+
+
+
+
+
+
+
 
 ```{r gender  }
 genders <- table(data$gender_updated)
