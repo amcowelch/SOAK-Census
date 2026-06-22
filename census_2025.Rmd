@@ -1,0 +1,3666 @@
+---
+title: "SOAK Census 2025"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+This document was created by Amanda "Tuna" Welch, Ph.D.
+
+All data was collected on site between May 21 and May 23, 2025 by sampling vehicles upon entry. A total of 914 surveys were collected. Box Office recorded 2543 tickets used for entry.
+
+Data was captured in Qualtrics with participants using their mobile device or an iPad for offline collection. Raw data was downloaded for cleaning and analysis.
+
+Analysis and visualization done in R and RStudio.
+  RStudio Team (2022). RStudio: Integrated Development Environment for R. RStudio, PBC,
+  Boston, MA URL http://www.rstudio.com/.
+
+Code and data available on Github at https://github.com/amcowelch/SOAK-Census
+
+For questions or comments: census@soakpdx.com or tuna@soakpdx.com
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+options(warn = -1)
+library(ggplot2)
+library(janitor)
+library(dplyr)
+library(stringr)
+library(RColorBrewer)
+library(scales)
+library(ggrepel)
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r import variables for years 23 and 24}
+load("C:/Users/Amanda Welch/Desktop/SOAK/SOAK23_24.RData")
+```
+
+```{r import 2025 data}
+data_2025 <- read.csv("C:/Users/Amanda Welch/Desktop/SOAK/SOAK 2025/SOAK 2025 raw data.csv")
+```
+
+```{r clean 2025 data}
+data_2025 <- clean_names(data_2025)
+data_2025 <- data_2025[-(1:2),]
+```
+
+```{r drop columns we do not need}
+data_2025 <- data_2025[, !names(data_2025) %in%
+               c("start_date","end_date","status","ip_address","progress","duration_in_seconds",
+                 "finished","recorded_date","response_id","recipient_last_name",
+                 "recipient_first_name", "recipient_email","external_reference","location_latitude",
+                 "location_longitude","distribution_channel","user_language","q_recaptcha_score")]
+```
+
+```{r columns 2025}
+# rename columns
+data_2025 <- data_2025 %>% 
+  dplyr::rename(
+    attend = q1,
+    age = q2,
+    race = q3,
+    born = q4,
+    language = q5,
+    gender = q6,
+    orientation = q7,
+    relationship = q8,
+    religion = q9,
+    politics = q10,
+    edu = q11,
+    income = q12,
+    zip_code = q13,
+    arrive = q14,
+    rv = q15,
+    ticket = q16,
+    move = q17,
+    participate = q18,
+    sustain = q19,
+    townhall = q22,
+    bm = q23,
+    info = q24,
+    ada = q25,
+    military = q26,
+    kids = q27,
+    teens = q28,
+    time_arrival = q29
+  )
+```
+
+```{r}
+# drop row with all but 1 answer omitted
+data_2025 <- data_2025[-678, ]
+```
+
+```{r}
+data_2025[data_2025 == ""] <- "Omitted"
+```
+
+```{r}
+data_2025[data_2025 == "Decline to answer"] <- "Omitted"
+```
+
+
+```{r attendance 2025}
+# rows (sometimes) store several year
+# pull them out and separate years so they can be counted individually
+attend_list_25 <- strsplit(data_2025$attend, ",")
+attend_unlist_25 <- unlist(attend_list_25)
+occurrences_25 <- table(attend_unlist_25)
+occurrences_df_25 <- as.data.frame(occurrences_25)
+
+# get attendance count
+# counting using commas - 0 commas per row means only have attended once, 1 comma = twice, etc.
+# exclude virgins - will be its own count
+attend_count_25 <- str_count(data_2025$attend[data_2025$attend != "It's my first year!" &
+                                        data_2025$attend != "Omitted"], ",")
+virgins_25 <- sum(data_2025$attend == "It's my first year!")
+
+count_0_ <- sum(attend_count_25 == 0)
+count_1_2_ <- sum(attend_count_25 %in% c(1, 2))
+count_3_6_ <- sum(attend_count_25 %in% c(3, 4, 5, 6))
+count_7_or_more_ <- sum(attend_count_25 >= 7)
+
+# create a new data frame
+attend_count_df_25 <- data.frame(attendance_25 = c("0","1", "2-3", "4-7", "8 or more"), 
+                              count_25 = c(virgins_25, count_0_, count_1_2_, count_3_6_, count_7_or_more_))
+attend_count_df_25$percent_25 <- attend_count_df_25$count_25 / sum(attend_count_df_25$count_25) * 100
+attend_count_df_25$percent_round_25 <- round(attend_count_df_25$percent, digits = 1)
+```
+
+```{r combine attendance data frames}
+attend_count_df <- cbind(attend_count_df, attend_count_df_25)
+attend_count_df <- subset(attend_count_df, select = -attendance_25)
+```
+
+```{r remove extra data frame}
+rm(attend_count_df_25)
+```
+
+# Attendance
+
+### Previous Years Attended
+
+```{r plot attendance 2025}
+# plot which years were reported attended
+occurrences_df_25 %>% 
+  filter(!attend_unlist_25 %in% c("Omitted", "Decline to answer")) %>% 
+  ggplot(aes(x = attend_unlist_25,
+             y = Freq)) +
+  geom_bar(stat = "identity",
+           color = "black",
+           fill = "turquoise") +
+  labs(x = "Year attended",
+       y = "Number of participants",
+       title = "\nHow many participants were at which years") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # Tighter plot margins
+        axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+        axis.title.y = element_text(vjust = 0.5),
+        panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+Were you there in 2008? What about last year? While only 3 surveyed folks (14 folks in 2024) were at 2008 SOAK, a total of 335 participants (36.5% of participants) reported 2025 as their first time attending SOAK, which is a decrease from 2023 and 2024 which had 43.2% and 40.6% of the population report themselves as first timers, respectively. In 2024, Burning Man's population of first timers was 31.8% [according to their Census report](https://blackrockcitycensus.org/sociodemo).
+
+```{r pie chart 2025}
+# create variable of participants used instead of hard coding value in chart
+participants <- sum(attend_count_df$count_25)
+
+# maths for pie chart
+pie_labels <- attend_count_df %>% 
+  mutate(csum = rev(cumsum(rev(percent_round_25))),
+         pos = percent_round_25/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), percent_round_25/2, pos))
+
+# the plot
+attend_count_df %>% 
+  ggplot(aes(x = "", y = percent_round_25, fill = fct_inorder(attendance))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Pastel2") +
+  geom_label_repel(data = pie_labels,
+                   aes(y = pos, label = paste0(percent_round_25, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Previous years attended")) +
+  ggtitle("\n\n\nAttendance history") +
+  labs(caption = paste(participants, "participants, excluding omitted or declined responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+```{r attend long}
+# Reshape the data into long format
+attend_long <- attend_count_df %>%
+  pivot_longer(cols = c("percent", "percent_24", "percent_25"), 
+               names_to = "year", 
+               values_to = "percent") %>%
+  mutate(year = recode(year, "percent" = "2023", "percent_24" = "2024", "percent_25" = "2025"))
+```
+
+``` {r longitudinal attendance}
+# Create spaghetti plot
+attend_long %>% 
+  ggplot(aes(x = year, 
+             y = percent, 
+             group = attendance, 
+             color = attendance)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "Attendance change over time",
+       x = "Year",
+       y = "Percentage",
+       color = "How many times \nattended before 2025") +
+  theme_classic() +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+```{r attend table}
+# table showing stats instead of chart
+subset_attend <- attend_count_df[, c('attendance','count','percent_round','count_24','percent_round_24',
+                                     'count_25', 'percent_round_25')]
+
+colnames(subset_attend)[1] <- "Previous years attended"
+colnames(subset_attend)[2] <- "Count"
+colnames(subset_attend)[3] <- "Percent"
+colnames(subset_attend)[4] <- "Count"
+colnames(subset_attend)[5] <- "Percent"
+colnames(subset_attend)[6] <- "Count"
+colnames(subset_attend)[7] <- "Percent"
+```
+
+<br>
+<br>
+
+```{r}
+subset_attend %>% 
+  kbl(
+    caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How many years have you attended SOAK?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How many years have you attended SOAK?}"
+    },
+    booktabs = TRUE
+  ) %>%
+  add_header_above(c(
+    " " = 1, 
+    "2023" = 2, 
+    "2024" = 2,
+    "2025" = 2
+  )) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+
+```
+
+
+[According to the Burning Man Census Report](https://blackrockcitycensus.org/sociodemo), its population had 34.8% first-time burners in 2023, with a slight decrease to 31.8% first-timers in 2024, compared to SOAK's 40.6% fist-time SOAKers in 2024 and a decrease to 36.5% in 2025.
+<br>
+
+# Sociodemographic Characteristics
+
+## Age and Gender
+
+### Age
+
+```{r}
+age_counts_25 <- table(data_2025$age)
+age_25 <- as.data.frame(age_counts_25)
+age_25$Var1 <- factor(age_25$Var1, levels = c("Under 13", "13-17", "18-20",
+                                              "21-24", "25-34", "35-44", "45-54", "55-64",
+                                              "Over 65", "Omitted"))
+age_25$Percent <- round((age_25$Freq / sum(age_25$Freq) * 100), digits = 1)
+```
+
+```{r age plot}
+# plot ages
+age_25 %>% 
+  ggplot(aes(x = Var1,
+             y = Freq,
+             fill = Var1)) +
+  geom_bar(stat = "identity",
+           color = "black") +
+  scale_fill_brewer(name = "Age ranges",
+                    palette = "RdYlGn") +
+  labs(x = "Age range",
+       y = "Number of participants",
+       title = "\nAge of participants") +
+  theme_classic() +
+    theme(legend.position = "none",
+          plot.margin = unit(c(0.5, 0.5, 0.5, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5)
+  )
+```
+
+```{r longitudinal age}
+ages_df <- cbind(age, 
+                 age_24,
+                 age_25)
+
+colnames(ages_df)[1] <- "Age group"
+colnames(ages_df)[2] <- "2023 Count"
+colnames(ages_df)[3] <- "2023 Percent"
+colnames(ages_df)[4] <- "Age group 2024"
+colnames(ages_df)[5] <- "2024 Count"
+colnames(ages_df)[6] <- "2024 Percent"
+colnames(ages_df)[7] <- "Age group 2025"
+colnames(ages_df)[8] <- "2025 Count"
+colnames(ages_df)[9] <- "2025 Percent"
+```
+
+```{r age table}
+# table showing stats instead of chart
+subset_age <- ages_df[, c('Age group', 
+                          '2023 Percent', 
+                          "Age group 2024", 
+                          "2024 Percent",
+                          "Age group 2025",
+                          "2025 Percent")]
+```
+
+```{r arranging age}
+# custom ranking order to ensure "Under 13" is first and "Omitted" is last
+subset_age_reordered <- ages_df %>%
+  mutate(order_rank = case_when(
+    `Age group` == "Under 13" ~ 1,       # "Under 13" is ranked first
+    `Age group` == "Omitted" ~ 3,        # "Omitted" is ranked last
+    TRUE ~ 2                            # All other rows are ranked in the middle
+  )) %>%
+  arrange(order_rank) %>%               # Order by custom rank
+  select(-order_rank)                   # Remove the ranking column
+```
+
+```{r age columns}
+colnames(subset_age_reordered)[1] <- "Age group"
+colnames(subset_age_reordered)[2] <- "Count"
+colnames(subset_age_reordered)[3] <- "Percent"
+colnames(subset_age_reordered)[4] <- "Age group"
+colnames(subset_age_reordered)[5] <- "Count"
+colnames(subset_age_reordered)[6] <- "Percent"
+colnames(subset_age_reordered)[7] <- "Age group"
+colnames(subset_age_reordered)[8] <- "Count"
+colnames(subset_age_reordered)[9] <- "Percent"
+```
+
+```{r kable fancy age}
+subset_age_reordered %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Age range</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Age range}"
+    }, 
+      row.names = FALSE) %>% 
+  add_header_above(c("2023" = 3, "2024" = 3, "2025" = 3)) %>%  # Ensure 6 columns (3 for 2023, 2 for 2024)
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+In 2025, the majority of participants were between ages 25 and 44. Ages 35-44 were the highest reported age again in 2025. Most age groups remained similar from 2023 to 2024 and to 2025, but there was a decrease in participants aged 25-34 and an increase in participants ages 45-54. 
+
+The survey changed from 2023 to 2024, by breaking the 18-24 age group into 2 subets: 18-20 and 21-24, thus we do not have an exact comparison for these ranges from year to year.
+
+When compared to [the Burning Man Census Report](https://blackrockcitycensus.org/sociodemo#age), in 2024 the ages were distributed similar to SOAK's population.
+<br>
+### Gender Identity
+
+```{r}
+gender_counts <- table(data_2025$gender)
+
+# calculate percentages
+gender25_percentages <- round(prop.table(gender_counts) * 100, 1)
+
+
+gen25_df <- data.frame(
+  Name = names(gender25_percentages),
+  Count = as.numeric(gender_counts),
+  Percent = gender25_percentages
+)
+
+gen25_df <- subset(gen25_df, select = -Percent.Var1)
+```
+
+```{r}
+# maths for pie chart
+gender_pie_labels <- gen25_df %>%
+  mutate(csum = rev(cumsum(rev(Percent.Freq))),
+         pos = Percent.Freq/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent.Freq/2, pos))
+```
+
+```{r, echo=FALSE}
+# the plot
+gen25_df %>%
+  ggplot(aes(x = "", y = Percent.Freq, fill = fct_inorder(Name))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Pastel2") +
+  geom_label_repel(data = gender_pie_labels,
+                   aes(y = pos, label = paste0(Percent.Freq, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Gender")) +
+  ggtitle("\n\n\nGender identity") +
+  labs(caption = paste(sum(gen25_df$Count), "participants, including omitted responses")) +
+  theme_void()
+```
+
+```{r}
+gender_df <- cbind(genders, gen24_df, gen25_df)
+```
+
+```{r}
+colnames(gender_df) <- c("Gender_2023", "Count_2023", "Percent_2023",
+                         "Gender_2024", "Count_2024", "Percent_2024",
+                         "Gender_2025", "Count_2025", "Percent_2025")
+
+```
+
+```{r}
+# Pivot into long format
+gender_long <- gender_df %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = c(".value", "year"),
+    names_pattern = "(.*)_(\\d+)"
+  ) %>%
+  mutate(year = as.integer(year))
+```
+
+```{r}
+gender_long <- gender_long %>%
+  mutate(Gender = recode(Gender,
+                         "CIS man"   = "Man",
+                         "CIS woman" = "Woman",
+                         "Multiple responses" = "Multiple identities"))
+```
+
+```{r}
+gender_long <- gender_long[, !(colnames(gender_long) %in% c("Count", "Gender identity"))]
+```
+
+```{r}
+colnames(gender_long)[colnames(gender_long) == "Name"] <- "gender"
+```
+
+``` {r longitudinal gender}
+gender_long %>% 
+  filter(Gender != "Omitted") %>% 
+  ggplot(aes(x = year, 
+             y = Percent, 
+             group = Gender, 
+             color = Gender)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(title = "Gender identity change over time",
+       x = "Year",
+       y = "Percentage",
+       color = "Gender") +
+  theme_classic() +
+  scale_x_continuous(breaks = c(2023, 2024, 2025)) +   # explicitly set breaks
+  theme(
+    plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),
+    axis.title.x = element_text(vjust = -0.5),
+    axis.title.y = element_text(vjust = 0.5),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.ticks.length = unit(-0.15, "cm"),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+    panel.spacing = unit(0.1, "lines"))
+
+```
+
+Most reported genders were stable between 2024 and 2025, although in 2025 women accounted for more than men for the 1st time. In 2024, we added the option to select trans-man and trans-woman, which accounted for 2.2% of all participants, which increased to 3.7% in 2025.
+
+```{r}
+colnames(gender_df)[1] <- "Gender1"
+colnames(gender_df)[2] <- "Count1"
+colnames(gender_df)[3] <- "Percent"
+colnames(gender_df)[4] <- "Gender2"
+colnames(gender_df)[5] <- "Count2"
+colnames(gender_df)[6] <- "Percent24"
+colnames(gender_df)[7] <- "Gender3"
+colnames(gender_df)[8] <- "Count3"
+colnames(gender_df)[9] <- "Percent25"
+```
+
+```{r}
+# Sort 2023 columns
+year23 <- gender_df %>% 
+  select(Gender1, Count1, Percent) %>%
+  arrange(desc(Percent))
+
+# Sort 2024 columns
+year24 <- gender_df %>%
+  select(Gender2, Count2, Percent24) %>%
+  arrange(desc(Percent24))
+
+# Sort 2025 columns
+year25 <- gender_df %>%
+  select(Gender3, Count3, Percent25) %>%
+  arrange(desc(Percent25))
+
+# Bind back together in the same wide layout
+gender_df_sorted <- bind_cols(year23, year24, year25)
+
+```
+
+```{r}
+colnames(gender_df_sorted)[1] <- "Gender"
+colnames(gender_df_sorted)[2] <- "Count"
+colnames(gender_df_sorted)[3] <- "Percent"
+colnames(gender_df_sorted)[4] <- "Gender"
+colnames(gender_df_sorted)[5] <- "Count"
+colnames(gender_df_sorted)[6] <- "Percent"
+colnames(gender_df_sorted)[7] <- "Gender"
+colnames(gender_df_sorted)[8] <- "Count"
+colnames(gender_df_sorted)[9] <- "Percent"
+```
+
+```{r kable gender}
+gender_df_sorted %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Gender identity</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Gender identity}"
+    }, 
+    row.names = FALSE) %>% 
+  add_header_above(c("2023" = 3, "2024" = 3, "2025" = 3)) %>%  # Ensure 6 columns (3 for 2023, 2 for 2024)
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+The above table is organized in descending order based on 2025's Percent column. According to [World Population Review](https://worldpopulationreview.com/state-rankings/transgender-population-by-state), while Oregon in 2024 had a transgender population of 0.47%, SOAK was comprised of 3.7% transgender folks.
+
+# Income and Education
+
+### Education
+
+```{r}
+edu_25 <- table(data_2025$edu)
+edu_25 <- as.data.frame(edu_25)
+colnames(edu_25) <- c("edu", "count")
+edu_25$percent <- round((edu_25$count / sum(edu_25$count) * 100), digits = 1)
+
+# order for the plot
+desired_edu_order <- c("Some K-12",
+                       "High school (diploma or GED)",
+                       "Some college",
+                       "Associates",
+                       "Vocational/trade",
+                       "Bachelors", 
+                       "Masters", 
+                       "Doctoral",
+                       "None",
+                       "Omitted")
+
+# convert the "edu" column to a factor with the desired order
+edu_25$edu <- factor(edu_25$edu, levels = desired_edu_order)
+```
+
+```{r}
+income_25 <- table(data_2025$income)
+income_25 <- as.data.frame(income_25)
+colnames(income_25) <- c("income", "count")
+income_25$percent <- round((income_25$count / sum(income_25$count) * 100), digits = 1)
+
+desired_income_order <- c("Less than $12,880","$12,880 - 24,999","$25,000 - 49,999",
+                          "$50,000 - 74,999","$75,000 - 99,999","$100,000 - 149,999", 
+                          "$150,000 - 199,999", "Above $200,000","Omitted")
+
+# Convert the "edu" column to a factor with the desired order
+income_25$income <- factor(income_25$income, levels = desired_income_order)
+```
+
+```{r education plots, echo=FALSE, warning=FALSE, message=FALSE}
+colnames(edu_25) <- sapply(colnames(edu_25), 
+                           function(x) paste(toupper(substr(x, 1, 1)), 
+                                                           substr(x, 2, nchar(x)), sep = ""))
+edu_25 %>% 
+  ggplot(aes(x = Edu, y = Percent)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           fill = "darkgray") +
+  labs(x = "Level of education completed",
+       y = "SOAK participants in 2025 (%)",
+       title = "\n\nHighest level of education completed") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1),
+        panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5)) +
+  scale_x_discrete(labels = c("Some K-12","High school","Some college","Associates",
+                       "Vocational/trade","Bachelors", "Masters", "Doctoral",
+                       "None","Omitted"))
+```
+
+In 2025, the number of advanced degrees (masters, doctoral) increased from 2024. As our average population age also increased, this advancement in education follows logically.
+
+```{r }
+edu_combined <- cbind(edu, edu24, edu_25)
+edu_combined <- edu_combined[, -4]
+edu_combined <- edu_combined[, -6]
+
+edu_combined <- edu_combined %>%
+  mutate(edu = factor(edu, levels = desired_edu_order)) %>%
+  arrange(edu) # Reorder rows based on the desired order
+
+colnames(edu_combined)[1] <- "Education"
+colnames(edu_combined)[2] <- "Count"
+colnames(edu_combined)[3] <- "Percent"
+colnames(edu_combined)[4] <- "Count"
+colnames(edu_combined)[5] <- "Percent"
+colnames(edu_combined)[6] <- "Count"
+colnames(edu_combined)[7] <- "Percent"
+```
+<br>
+```{r}
+edu_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Educational attainment</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Educational attainment}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+According to data pulled from the [US Census Bureau](https://fred.stlouisfed.org/graph/?g=1CUwr), in 2023 37.7% of Oregonians attained a Bachelor's Degree or Higher. In 2024, [44.6% of Burners had Bachelor's degrees](https://blackrockcitycensus.org/sociodemo#highest-level-of-education-completed).
+
+### Income
+
+``` {r income plots}
+income_25 %>% 
+  ggplot(aes(x = income, 
+             y = percent)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           fill = "darkgreen", 
+           alpha = 0.7) +
+  labs(x = "Income",
+       y = "Participants (%)",
+       title = "\n\nPersonal income over the last 12 months in 2025") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1),
+        panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5))
+```
+
+```{r longitudinal income}
+# combine income dfs
+income_combined <- cbind(income, income_24, income_25)
+income_combined <- income_combined[, -4]
+income_combined <- income_combined[, -6]
+```
+
+```{r long income}
+# Reshape the data into long format
+income_long <- income_combined %>%
+  pivot_longer(cols = c("Percent", "percent_24", "percent"), 
+               names_to = "year", 
+               values_to = "percent") %>%
+  mutate(year = recode(year, "Percent" = "2023", 
+                       "percent_24" = "2024",
+                       "percent" = "2025"))
+```
+
+``` {r longitudinal income plot, echo=F}
+# Create spaghetti plot
+income_long %>% 
+  filter(Income != "Omitted") %>% 
+  ggplot(aes(x = year, y = percent, group = Income, color = Income, shape = Income)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "Personal income pre-tax in the last 12 months",
+       x = "Year",
+       y = "Total particpants (%)",
+       color = "Income",
+       shape = "Income") +
+  theme_classic() +
+  scale_color_brewer(palette = "BrBG") +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+Income has remained stable over the years, with no large change in one reported income bracket. The distribution of incomes is fairly even in the middle brackets, with lower values on the tails, as you would expect.
+
+<br>
+```{r reorder and rename columns for income}
+# Reorder the "Income" column and rename the columns
+income_combined_ordered <- income_combined %>%
+  mutate(Income = factor(Income, levels = desired_income_order)) %>%
+  arrange(Income)
+```
+
+```{r}
+colnames(income_combined_ordered)[2] <- "Count"
+colnames(income_combined_ordered)[3] <- "Percent"
+colnames(income_combined_ordered)[4] <- "Count"
+colnames(income_combined_ordered)[5] <- "Percent"
+colnames(income_combined_ordered)[6] <- "Count"
+colnames(income_combined_ordered)[7] <- "Percent"
+```
+
+```{r income table}
+income_combined_ordered %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Personal income pre-tax in previous 12 months</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Personal income pre-tax in previous 12 months}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+According to the Oregon Secretary of State, the [per capita personal income in 2023 was $65,426](https://sos.oregon.gov/blue-book/Pages/facts/economy-income.aspx). To calculate the SOAK per capita income, we would need exact income amounts instead of ranges. Despite this, we can see the majority of participants earn within a bracket that would suggest our per capita is similar to or above Oregon.
+
+### Residence
+
+```{r zipcode }
+library(zipcodeR)
+```
+
+```{r, include=FALSE}
+# 2025 ZIP DATA
+
+# Count empty zip codes
+sum(data_2025$zip_code == "") 
+# There are 0 empty zip codes
+
+# Count "Omitted" zip codes
+sum(data_2025$zip_code == "Omitted") 
+# There are 51 "Omitted" zip codes
+
+# Return all values that do not match 5-digit zipcode
+data_2025$zip_code[!grepl('\\s*\\d{5}\\s*', 
+                          data_2025$zip_code)]
+# There are 57 that do not match
+```
+
+```{r include=FALSE}
+# function to get city and state information for a given ZIP code
+get_city_state_for_zip <- function(zipcode) {
+  zip_info <- zip_code_db[zip_code_db$zipcode == as.character(zipcode), c("major_city", "state")]
+  city <- ifelse(length(zip_info$major_city) > 0, zip_info$major_city, NA)
+  state <- ifelse(length(zip_info$state) > 0, zip_info$state, NA)
+  return(data.frame(City = city, State = state))
+}
+
+#2025 data includes:
+# V6E1V2 - Vancouver, BC
+# V0M1K0 - Harrison Hot Springs, BC
+# V3a5z3 - Langley, BC
+# V5b3k1 - Burnaby, BC
+
+#zip_codes from 2024
+zip_codes_25 <- table(data_2025$zip_code)
+zip_codes_25 <- as.data.frame(zip_codes_25)
+colnames(zip_codes_25) <- c("zipcode", "count")
+
+zip_geos_25 <- geocode_zip(data_2025$zip_code) # get latitude and longitude for zip codes
+zips_merged_25 <- left_join(zip_codes_25, zip_geos_25, by = "zipcode") #combine data: zip, quantity, lat, lng
+
+# 2025 zipcode data:
+# apply the function to each unique 2025 zip code in zips_merged_25
+zips_merged_25 <- zips_merged_25 %>%
+  rowwise() %>%
+  do(get_city_state_for_zip(.$zipcode)) %>%
+  bind_cols(zips_merged_25, .)
+
+ zips_merged_25[!complete.cases(zips_merged_25),]
+```
+
+```{r, include=FALSE}
+# 60418
+zips_merged_25$lat[12] <- 41.65
+zips_merged_25$lng[12] <- -87.75
+
+# 94501 
+zips_merged_25$City[52] <- "Alameda"
+zips_merged_25$State[52] <- "CA"
+zips_merged_25$lat[52] <- 37.77
+zips_merged_25$lng[52] <- -122.28
+
+# 97293
+zips_merged_24$lat[138] <- 45.52
+zips_merged_24$lng[138] <- -122.66
+
+# 98214 
+zips_merged_25$City[218] <- "Bellingham"
+zips_merged_25$State[218] <- "WA"
+zips_merged_25$lat[218] <- 48.50
+zips_merged_25$lng[218] <- -122.64
+
+# 98216 
+zips_merged_25$City[219] <- "Bellingham"
+zips_merged_25$State[219] <- "WA"
+zips_merged_25$lat[219] <- 48.50
+zips_merged_25$lng[219] <- -122.64
+
+# 98401 
+zips_merged_25$lat[227] <- 47.28
+zips_merged_25$lng[227] <- -122.76
+
+# no foreign zip codes to avoid outliers on US map
+
+zips_merged_25$City[265] <- "Harrison Hot Springs, BC"
+zips_merged_25$State[265] <- "Canada"
+
+zips_merged_25$City[266] <- "Langley, BC"
+zips_merged_25$State[266] <- "Canada"
+
+zips_merged_25$City[267] <- "Burnaby, BC"
+zips_merged_25$State[267] <- "Canada"
+
+zips_merged_25$City[268] <- "Vancouver, BC"
+zips_merged_25$State[268] <- "Canada"
+
+zips_merged_25[!complete.cases(zips_merged_25),]
+# Check for remaining null or incomplete
+```
+
+```{r include=FALSE}
+zips_merged_25 <- zips_merged_25[-62, ]
+```
+
+```{r zip plot 2025, echo=FALSE}
+zips_merged_25_clean <- na.omit(zips_merged_25)
+usa_map <- map_data("state")
+
+ggplot() +
+  geom_polygon(data = usa_map, 
+               aes(x = long, 
+                   y = lat, 
+                   group = group), 
+               fill = "white", 
+               color = "gray") +
+  geom_point(data = zips_merged_25_clean, 
+             aes(x = lng, 
+                 y = lat, 
+                 size = count, 
+                 color = count), 
+             show.legend = TRUE) +
+  scale_size_continuous(range = c(1, 10)) +
+  scale_color_gradient(low = "blue", 
+                       high = "red") +  # Set the color scale
+  labs(title = "Zip code density map of 2025 SOAK attendees in the United States") +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.ticks = element_blank(),  # Remove axis ticks
+        axis.line = element_blank()) + # Remove axis lines) +
+  guides(size = "none") +
+  labs(color = "Zip code frequency") +
+  coord_fixed(ratio = 1.5)
+```
+
+This density heat map shows the highest and lowest concentrations of residencies of SOAK participants. As expected, we see the hottest and largest areas in the Pacific Northwest.
+
+```{r states 2025, include=FALSE}
+state_counts_25 <- zips_merged_25 %>%
+  group_by(State) %>%
+  summarize(Count = sum(count))
+
+state_counts_25 <- state_counts_25  %>%
+  arrange(desc(Count))
+
+state_counts_25 <- na.omit(state_counts_25)
+state_counts_25$Percent <- round((state_counts_25$Count / sum(state_counts_25$Count) * 100), 
+                                 digits = 1)
+```
+
+```{r cities 2025, include=FALSE}
+city_counts_25 <- zips_merged_25 %>%
+  group_by(City) %>%
+  summarize(Count = sum(count))
+
+city_counts_25 <- city_counts_25 %>%
+  arrange(desc(Count))
+
+city_counts_25 <- na.omit(city_counts_25)
+city_counts_25$Percent <-  round((city_counts_25$Count / sum(city_counts_25$Count) * 100), digits = 1)
+```
+
+```{r}
+# Subset the top 15 rows from each data frame
+state_counts_25_top15 <- state_counts_25 %>% slice(1:15)
+
+# Combine the two data frames side by side
+combined_state <- cbind(state_counts_top10, 
+                        state_counts_24_top10,
+                        state_counts_25_top15)
+```
+
+```{r}
+# state table
+combined_state %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>State counts</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large State counts}"
+    }) %>%
+  add_header_above(c("2023" = 3, 
+                     "2024" = 3,
+                     "2025" = 3)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+<br>
+The top 15 states of origin reported in 2023, 2024, and 2025. Oregon, Washington, California, and Idaho were the states most commonly reported. We also have Canada in our top 15 places of origin in 2024 and 2025.
+<br>
+
+```{r}
+# Subset the top 10 rows from each data frame
+city_counts_25_top10 <- city_counts_25 %>% slice(1:10)
+
+# Combine the two data frames side by side
+combined_city <- cbind(city_counts_top10, 
+                       city_counts_24_top10,
+                       city_counts_25_top10)
+```
+
+```{r}
+# city table
+combined_city %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>City counts (top 10)</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large City counts (top 10)}"
+    }) %>%
+  add_header_above(c("2023" = 3, 
+                     "2024" = 3,
+                     "2025" = 3)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+When looking at specific cities, the top 10 reported were in Oregon and Washington with Portland accounting for the highest of all responses at 47%, which is a decrease from the last 2 years. The top 4 cities have remained the same between 2023 and 2025.
+
+# Ethnicity and Language
+
+### Ethnicity
+```{r race 25}
+race_25 <- gsub(".*\\,.*", "Multiracial", data_2025$race)
+race_25 <- as.data.frame(race_25)
+```
+
+
+```{r}
+race25 <- table(race_25)
+race25<- as.data.frame(race25)
+colnames(race25) <- c("Race", "Count")
+race25$Percent <- round((race25$Count / sum(race25$Count) * 100), digits = 1)
+```
+
+```{r}
+rm(race_25)
+```
+
+```{r race plot }
+race25 <- race25 %>% arrange(desc(Percent))
+race25$Race <- factor(race25$Race, levels = race25$Race)
+
+# Create the bar plot with reordered data
+race25 %>%
+  ggplot(aes(x = reorder(Race, -Percent), y = Percent)) +
+  geom_bar(stat = "identity", color = "black", fill = "pink") +
+  labs(
+    x = "Ethnicity",
+    y = "SOAK participants in 2025 (%)",
+    title = "\n\nEthnoracial background"
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+# merge 3 tables
+race_combined <- race %>%
+  full_join(race24, by = "Race") %>%
+  full_join(race25, by = "Race")
+```
+
+```{r}
+colnames(race_combined) <- c("Race", 
+                             "Count", "Percent", 
+                             "Count", "Percent",
+                             "Count", "Percent")
+```
+
+```{r race table}
+race_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Ethnicity (or race) you identify with</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Ethnicity (or race) you identify with}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+The most common reported race was White or Caucasian, which is the same as in 2023 and 2024. Generally, the reporting of race was consistent between years with a slight uptick in White. 
+
+[According to Data USA](https://datausa.io/profile/geo/oregon#demographics), in 2022 Oregon's White population was 73.3%. SOAK has had an increase in population reporting white or caucasian, with all other primary race identities decreasing in 2025.
+
+### Birth Place
+
+```{r birth place}
+# birthplace table for the 2025 data
+birth_2025 <- table(data_2025$born)
+birth_2025 <- as.data.frame(birth_2025)
+colnames(birth_2025) <- c("response", "count_25")
+
+# percent for the 2025 data
+birth_2025$percent_25 <- round((birth_2025$count_25 / sum(birth_2025$count_25) * 100), digits = 1)
+
+# merge 3 tables
+birth_combined <- birth %>%
+  full_join(birth_2024, by = "response") %>%
+  full_join(birth_2025, by = "response")
+```
+
+```{r birth graph}
+#maths for pie chart
+pie_labels_birth <- birth_2025 %>% 
+  mutate(csum = rev(cumsum(rev(percent_25))),
+         pos = percent_25/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), percent_25/2, pos))
+
+#the plot
+birth_2025 %>% 
+  ggplot(aes(x = "", y = percent_25, fill = fct_inorder(response))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Pastel2") +
+  geom_label_repel(data = pie_labels_birth,
+                   aes(y = pos, label = paste0(percent_25, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Response")) +
+  ggtitle("\n\n\nWere you born in the US?") +
+  labs(caption = paste(sum(birth_2025$count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+```{r birth renaming}
+colnames(birth_combined) <- c("Response", 
+                              "Count", "Percent", 
+                              "Count", "Percent",
+                              "Count", "Percent")
+```
+
+``` {r birth table}
+birth_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Were you born in the US?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Were you born in the US?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+Most participants were born in the USA. In Oregon in 2023, [the foreign-born population was 9.6%](https://usafacts.org/answers/how-many-immigrants-are-in-the-us/state/oregon/) compared to SOAK's 5.3% foreign-born population in 2025, which was a stark decrease over the last 2 years.
+
+### Primary Language
+
+```{r include=FALSE}
+language_25 <- data_2025 %>%
+  select(language, q5_12_text)
+
+# replace other entry with that was entered manually
+language_25 <- language_25 %>%
+  mutate(language = str_replace(language, "Other", q5_12_text))
+
+# remove omitted response
+language_25 <- language_25 %>%
+  filter(language != "Omitted")
+
+language_25$language <- str_remove(language_25$language, ",Omitted")
+
+language_25 <- language_25 %>%
+  filter(language != "Decline To Answer")
+
+language_25$language <- str_remove(language_25$language, ",Decline to answer")
+
+language_25 <- language_25 %>%
+  na.omit(language_25)
+
+# Count rows where language is "English" only
+english_only_25 <- sum(grepl("^English$", language_25$language, ignore.case = TRUE))
+
+# Count rows where language contains "English" and other languages
+english_with_other_25 <- sum(grepl("English", language_25$language, ignore.case = TRUE) & 
+                               !grepl("^English$", language_25$language, ignore.case = TRUE))
+
+# Count rows where language does not contain "English"
+non_english_25 <- sum(!grepl("English", language_25$language, ignore.case = TRUE))
+
+# Calculate percentages of languages spoken in relation to English
+language_percent_25 <- c(non_english_25/nrow(language_25)*100,
+                      english_with_other_25/nrow(language_25)*100,
+                      english_only_25/nrow(language_25)*100)
+
+language_percent_25 <- round(language_percent_25, 1)
+language_percent_names <- c("Non-English", "English and 1+ language", "English")
+
+
+# Create the data frame
+language_percent_df_25 <- data.frame(Language = language_percent_names, 
+                                     Percentage = language_percent_25)
+```
+
+```{r echo=FALSE}
+# Plot
+language_percent_df_25 %>%
+  ggplot(aes(x = Language, 
+             y = Percentage, 
+             fill = Language)) +
+  geom_bar(stat = "identity", 
+           position = "stack", 
+           alpha = 0.9, color = "black") +
+  geom_text(aes(label = sprintf("%.1f%%", Percentage)),
+            position = position_stack(vjust = 0.5),
+            size = 3, 
+            color = "black") +
+  labs(title = "Language use by partcipants", 
+       x = "Language", 
+       y = "Percentage") +
+  theme_classic()
+```
+
+```{r}
+language_df_counts_25 <- language_25 %>%
+  separate_rows(language, sep = ",") %>%
+  group_by(language) %>%
+  count()
+
+# capitalize languages
+language_df_counts_25 <- language_df_counts_25 %>%
+  mutate(language = str_to_title(language))
+
+colnames(language_df_counts_25) <- c("Language", "Count")
+```
+
+```{r}
+combined_lang <- language_percent_df %>%
+  full_join(language_percent_df_24, by = "Language") %>%
+  full_join(language_percent_df_25, by = "Language")
+```
+
+```{r}
+colnames(combined_lang) <- c("Language", "Percentage", "Percentage", "Percentage")
+```
+
+```{r}
+# language table
+combined_lang %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Preferred language used</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Preferred language used}"
+    }) %>%
+  add_header_above(c(" " = 1,
+    "2023" = 1, 
+                     "2024" = 1, 
+                     "2025" = 1)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+```{r}
+# Create 5 rows of NA with the same column names as the last 2 years dfs
+na_rows <- data.frame(matrix(NA, nrow = 5, 
+                             ncol = ncol(language_df_counts_25)))
+colnames(na_rows) <- colnames(language_df_counts_25)
+
+# Append the rows of NA to the original data frame
+language_df_counts_25 <- bind_rows(language_df_counts_25, na_rows)
+```
+
+```{r}
+combined_all_lang <- cbind(language_df_counts, language_df_counts_24, language_df_counts_25)
+```
+
+```{r}
+colnames(combined_all_lang) <- c("Language", "Count", 
+                                 "Language", "Count",
+                                 "Language", "Count")
+```
+<br>
+Language use has remained stable between the years, with English being the most commonly used language by participants.
+
+```{r}
+# language table
+combined_all_lang %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>All languages reported</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large All languages reported}"
+    }) %>%
+  add_header_above(c("2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+<br><br>
+
+### Accessibility Requirements
+
+```{r ada}
+ada25 <- table(data_2025$ada)
+ada25 <- as.data.frame(ada25)
+colnames(ada25) <- c("Response", "Count")
+ada25$Percent <- round((ada25$Count / sum(ada25$Count) * 100), digits = 1)
+```
+
+```{r ada pie}
+#maths for pie chart
+pie_labels_ada <- ada25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+ada25 %>% 
+  ggplot(aes(x = "", y = Percent, fill = fct_inorder(Response))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "PiYG") +
+  geom_label_repel(data = pie_labels_ada,
+                   aes(y = pos, label = paste0(Percent, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Response")) +
+  ggtitle("\n\n\nDo you have accessibility requirements?") +
+  labs(caption = paste(sum(ada$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+```{r}
+# merge the two tables by the "response" column
+ada_combined <- merge(ada, ada25, by = "Response", all = TRUE)
+```
+
+```{r}
+colnames(ada_combined) <- c("Response", 
+                            "Count", "Percent", 
+                            "Count", "Percent")
+```
+
+``` {r ada table}
+ada_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Do you have accessibility requirements?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Do you have accessibility requirements?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+### Military Status
+
+```{r military status}
+military25 <- table(data_2025$military)
+military25 <- as.data.frame(military25)
+
+colnames(military25) <- c("Status", "Count")
+
+military25$Percent <- round((military25$Count / sum(military25$Count) * 100), digits = 1)
+```
+
+```{r military pie}
+#maths for pie chart
+pie_labels_mil <- military25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+military25 %>% 
+  ggplot(aes(x = "", y = Percent, fill = fct_inorder(Status))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_manual(values = c("red", "white", "dodgerblue", "gray")) +
+  geom_label_repel(data = pie_labels_mil,
+                   aes(y = pos, label = paste0(Percent, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Military status")) +
+  ggtitle("\n\n\nMilitary status of participants") +
+  labs(caption = paste(sum(military25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+```{r}
+# merge the two tables by the "response" column
+military_combined <- merge(military, military25, by = "Status", all = TRUE)
+```
+
+```{r}
+colnames(military_combined) <- c("Status", 
+                            "Count", "Percent", 
+                            "Count", "Percent")
+```
+
+```{r military table}
+military_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Military service</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Military service}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+According to USA Facts, [Oregon's Veteran population in 2022 was 7.4%](https://usafacts.org/topics/veterans/state/oregon/), which is higher than the SOAK population. 
+
+# Spirituality and Politics
+
+### Political Party Affiliation
+
+```{r}
+# create df only containing rel and pol data
+religion_politics25 <- data_2025 %>%
+  select(religion, q9_8_text, politics, q10_8_text)
+  
+# replace other entry with the political that was entered manually
+religion_politics25 <- religion_politics25 %>%
+  mutate(politics = str_replace(politics, "Other", q10_8_text))
+```
+
+```{r}
+
+religion_politics25$politics <- sub("Aggressively leftist", 
+                                    "Leftist", religion_politics25$politics)
+religion_politics25$politics <- sub("Democrat due to closed primaries in oregon", 
+                                    "Democrat", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("Don't support the Democrats but it's the best we have atm", 
+                                    "Democrat", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("I don’t know anymore", 
+                                    "Unsure", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- gsub("Leftist \\(democratic socialist\\?\\)", 
+                                     "Leftist", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("leftist / anarchist", 
+                                    "Leftist", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("Lefty", 
+                                    "Leftist", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("Registered as democratic but identify with progressive/leftist", 
+                                    "Democrat", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("strategically voting Democratic in general elections", 
+                                    "Democrat", 
+                                    religion_politics25$politics)
+religion_politics25$politics <- sub("Party for Socialism and Liberation", 
+                                    "Socialist", 
+                                    religion_politics25$politics)
+
+```
+
+```{r}
+# make tedious slightly less tedious
+values_to_replace <- c("Mine",
+"aligning to any part is a bad idea, the government exists simply to control and profit off the people….",
+"Anti billionaire party",
+"Democratic confederalist",
+"Disappointment", 
+"Egalitarian",
+"Frisbee",
+"Fuck the whole system",
+"Hardcore liberal",
+"Liberal but dissatisfied with everything",
+"Moderate",
+"Non citizen",
+"People power",
+"Tax Wealth, Not Work"
+)
+
+replacement_value <- "None"
+religion_politics25$politics <- gsub(paste(values_to_replace, collapse = "|"),
+                                   replacement_value, religion_politics25$politics)
+```
+
+```{r}
+# Clean and standardize the 'politics' column
+religion_politics25 <- religion_politics25 %>%
+  mutate(
+    politics = politics %>%
+      trimws() %>%                             # Remove leading/trailing spaces
+      tolower() %>%                            # Convert to lowercase
+      gsub("omitted\\?", "omitted", .) %>%     # Replace "Omitted?" with "Omitted"
+      gsub(" +", " ", .) %>%                   # Remove multiple spaces
+      tools::toTitleCase()                     # Convert to title case
+  )
+
+# Count the cleaned entries
+politics_counts25 <- table(religion_politics25$politics)
+```
+
+```{r}
+religion_politics25 <- religion_politics25 %>%
+  mutate(
+    religion = religion %>%
+      trimws() %>%                             # Remove leading/trailing spaces
+      tolower() %>%                            # Convert to lowercase
+      gsub(" +", " ", .) %>%                   # Remove multiple spaces
+      tools::toTitleCase()                     # Convert to title case
+  )
+
+# Count the cleaned entries
+religion_counts25 <- table(religion_politics25$religion)
+```
+
+```{r}
+# calculate percentages
+politics_percentages25 <- round(prop.table(politics_counts25) * 100, 1)
+religion_percentages25 <- round(prop.table(religion_counts25) * 100, 1)
+
+politics_df25 <- data.frame(
+  Politics = names(politics_percentages25),
+  Counts_Politics = as.numeric(politics_counts25),
+  Percentage_Politics = politics_percentages25
+)
+```
+
+```{r}
+religion_df25 <- data.frame(
+  Religion = names(religion_percentages25),
+  Counts_Religion = as.numeric(religion_counts25),
+  Percentage_Religion = religion_percentages25
+)
+
+colnames(religion_df25)[colnames(religion_df25) == "Percentage_Religion.Freq"] <- "Percent"
+colnames(religion_df25)[colnames(religion_df25) == "Counts_Religion"] <- "Count"
+religion_df25 <- subset(religion_df25, select = -Percentage_Religion.Var1)
+
+colnames(politics_df25)[colnames(politics_df25) == "Percentage_Politics.Freq"] <- "Percent"
+colnames(politics_df25)[colnames(politics_df25) == "Counts_Politics"] <- "Count"
+politics_df25 <- subset(politics_df25, select = -Percentage_Politics.Var1)
+```
+
+```{r}
+politics_df25$Politics <- ifelse(
+  politics_df25$Politics == "Working Families Party",
+  "Working Families",
+  politics_df25$Politics
+)
+```
+
+```{r graph politics }
+politics_df25$Politics <- factor(politics_df25$Politics,
+                               levels = politics_df25$Politics[order(politics_df25$Percent, 
+                                                                     decreasing = TRUE)])
+
+politics_df25 %>%
+  ggplot(aes(x = Politics, 
+             y = Percent)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           fill = "lavender") +
+  labs(
+    x = "Political party",
+    y = "SOAK participants in 2025 (%)",
+    title = "\nPolitical party affiliation"
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+pol_combined <- merge(
+  politics_df,
+  politics_df24,
+  by = "Politics",
+  all = TRUE
+)
+
+pol_combined <- merge(
+  pol_combined,
+  politics_df25,
+  by = "Politics",
+  all = TRUE
+)
+```
+
+```{r}
+pol_combined <- pol_combined %>% 
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(pol_combined) <- c("Politics", 
+                            "Count", "Percent", 
+                            "Count", "Percent",
+                            "Count", "Percent"
+                            )
+```
+
+```{r politics table}
+pol_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Political party affiliation</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Political party affiliation}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br> 
+
+The table is organized in descending order by 2025's percent. The most commonly reported political party affiliation was Democrat (41.2%), with no political affiliation coming in second most. Progressive was third most common. These 3 ranked the same in 2023 and 2024. In 2024, [58.1% of Burners reported Democrat as their party affiliation](https://blackrockcitycensus.org/sociodemo#political-party-affiliation), followed by None or unaffiliated. 
+
+### Religion and Spirituality
+
+```{r}
+religion_df25$Religion[
+  religion_df25$Religion == "Religious (any Denomination)"
+] <- "Religious"
+
+```
+
+```{r}
+religion_df25 %>%
+  ggplot(aes(x = Religion, 
+             y = Percent, 
+             fill = Religion)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           alpha = 0.8) +
+  scale_fill_brewer(palette = "GnBu") +
+  labs(
+    x = "Religion",
+    y = "SOAK participants in 2025 (%)",
+    title = "\nReligious or spiritual identity"
+  ) +
+  geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_stack(vjust = 0.5),
+            size = 3.5, color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")
+```
+
+```{r}
+religion_df <- religion_df  %>%
+  arrange(desc(Percent))
+
+religion_df24 <- religion_df24 %>% 
+  arrange(desc(Percent))
+
+religion_df25 <- religion_df25 %>% 
+  arrange(desc(Percent))
+```
+
+```{r}
+religion_combined <- merge(
+  religion_combined,
+  religion_df25,
+  by = "Religion",
+  all = TRUE
+)
+```
+
+```{r}
+colnames(religion_combined) <- make.names(
+  colnames(religion_combined),
+  unique = TRUE
+)
+```
+
+```{r}
+religion_combined <- religion_combined %>%
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(religion_combined) <- c("Religion", 
+                                 "Count", "Percent", 
+                                 "Count", "Percent",
+                                 "Count", "Percent")
+```
+
+```{r religion table}
+religion_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Religious or spiritual identity</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Religious or spiritual identity}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br> 
+The table is organized in descending order by 2025's percent. Spiritual was the highest reported religious or spiritual identity in 2025, same as in 2023 and 2024. Agnostic and atheist were the 2nd and 3rd most commonly reported identity, respectively. These identities swapped position from 2023 and 2024. Burners reported their religious and spiritual beliefs similarly, with [spiritual coming in at 48.3%, atheist at 22.1%, and agnostic at 16.0%](https://blackrockcitycensus.org/sociodemo#spirituality). 
+
+# Sexuality and Relationships
+
+### Sexual Orientation
+
+```{r}
+ori_rel25 <- data_2025 %>%
+   select(orientation, q7_7_text, relationship, q8_6_text)
+
+# replace other entry with the political that was entered manually
+ori_rel25 <- ori_rel25 %>%
+  mutate(orientation = str_replace(orientation, "Other", q7_7_text))
+
+ori_rel25 <- ori_rel25 %>%
+  mutate(relationship = str_replace(relationship, "Other", q8_6_text))
+```
+
+```{r}
+# make tedious slightly less tedious
+values_to_replace <- c("Let’s call it monogom-ish, poly but generally found in monogamous relationships",
+  "Monoflexible hahaha",
+  "Married but open to things",
+  "Monogoflexible",
+  "Monogomish",
+  "Mostly monogamous sometimes open",
+  "Occasionally a threesom",
+  "Monogamish "
+)
+
+replacement_value <- "Monogamish"
+ori_rel25$relationship <- gsub(paste(values_to_replace, collapse = "|"),
+                                   replacement_value, ori_rel25$relationship)
+```
+
+```{r}
+ori_rel25$relationship <- sub("Relationship Anarchist|Anarchy|Non-monogamous ", 
+                              "Non-monogamous",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Solo poly",
+                              "Polyamorous",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Single, Open-minded|Open to poly or monogamous based on partner", 
+                              "Unsure/Questioning",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Single and ready mingle|Single|Don’t trust my judgement|Omitted ", 
+                              "Omitted",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Engadged",
+                              "Monogamous",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("None",
+                              "Aromantic",
+                              ori_rel25$relationship)
+```
+
+```{r}
+ori_rel25$orientation <- sub("Accepting of the saddlepoint :|Burt Reynolds:|Omitted:",
+                              "Omitted",
+                              ori_rel25$orientation)
+
+ori_rel25$orientation <- sub("Bisexual and asexual spectrum:|Pan :",
+                              "Bisexual or pansexual",
+                              ori_rel25$orientation)
+
+ori_rel25$orientation <- sub("Demi ace:|Plus demisexual:",
+                              "Demisexual",
+                              ori_rel25$orientation)
+
+ori_rel25$orientation <- sub("Queer/demi:",
+                              "Queer",
+                              ori_rel25$orientation)
+```
+
+```{r ori rel 25}
+ori_rel25 <- ori_rel25 %>%
+  select(orientation, relationship)
+```
+
+```{r}
+ori_rel25$relationship <- sub("Omitted ", 
+                              "Omitted",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Non-monogamous ", 
+                              "Non-monogamous",
+                              ori_rel25$relationship)
+
+ori_rel25$relationship <- sub("Monogamish ", 
+                              "Monogamish",
+                              ori_rel25$relationship)
+```
+
+
+```{r relationship orientation dfs 24, include=FALSE}
+orientation_counts <- table(ori_rel25$orientation)
+relationship_counts <- table(ori_rel25$relationship)
+
+# calculate percentages
+ori_percentages <- round(prop.table(orientation_counts) * 100, 1)
+relation_percentages <- round(prop.table(relationship_counts) * 100, 1)
+
+ori_df25 <- data.frame(
+  Orientation = names(ori_percentages),
+  Counts_Orientation = as.numeric(orientation_counts),
+  Percentage_Orientation = ori_percentages
+)
+
+relation_df25 <- data.frame(
+  Relationship = names(relation_percentages),
+  Counts_Relations = as.numeric(relationship_counts),
+  Percentage_Relation = relation_percentages
+)
+
+colnames(ori_df25)[colnames(ori_df25) == "Percentage_Orientation.Freq"] <- "Percent"
+colnames(ori_df25)[colnames(ori_df25) == "Counts_Orientation"] <- "Count"
+ori_df25 <- subset(ori_df25, select = -Percentage_Orientation.Var1)
+
+colnames(relation_df25)[colnames(relation_df25) == "Percentage_Relation.Freq"] <- "Percent"
+colnames(relation_df25)[colnames(relation_df25) == "Counts_Relations"] <- "Count"
+relation_df25 <- subset(relation_df25, select = -Percentage_Relation.Var1)
+```
+
+```{r graph orientation}
+#plot percent of people
+ori_df25 %>%
+  ggplot(aes(x = Orientation, 
+             y = Percent, 
+             fill = Orientation)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           alpha = 0.9) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(
+    x = "Orientation",
+    y = "Participant percentage",
+    title = "\nPrimary sexual orientation reported by individuals"
+  ) +
+   geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_stack(vjust = 0.5),
+            size = 3.5, color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+```
+
+Straight was the most commonly reported sexual orientation in an individual (34.0%) followed by bisexual or pansexual (31.6%) in 2025. The graph is organized alphabetically and no longer contains a "Multiple responses" category, as participants were only able to select one option in 2025. 
+<br>
+
+```{r}
+# merge the two tables
+orientation_combined <- merge(orientation_combined, 
+                              ori_df25, 
+                              by = "Orientation", 
+                              all = TRUE)
+```
+
+```{r}
+colnames(orientation_combined) <- c("Orientation", 
+                                    "Count_23", "Percent_23", 
+                                    "Count_24", "Percent_24",
+                                    "Count_25", "Percent_25")
+```
+
+```{r long sexual ori}
+# Reshape the data into long format
+ori_long <- orientation_combined %>%
+  pivot_longer(
+    cols = c("Percent_23", 
+             "Percent_24",
+             "Percent_25"),
+    names_to = "year",
+    values_to = "percent"
+  ) %>%
+  mutate(year = recode(year, 
+                       "Percent_23" = "2023", 
+                       "Percent_24" = "2024",
+                       "Percent_25" = "2025"))
+```
+
+``` {r longitudinal sexual orientation plot, echo=F}
+# Create spaghetti plot
+ori_long %>% 
+  filter(Orientation != "Omitted") %>% 
+  ggplot(aes(x = year, 
+             y = percent, 
+             group = Orientation, 
+             color = Orientation, 
+             shape = Orientation)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "Sexual orientation over time",
+       x = "Year",
+       y = "Total particpants (%)",
+       color = "Orientation",
+       shape = "Orientation") +
+  theme_classic() +
+  scale_color_brewer(palette = "Paired") +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+```{r}
+orientation_combined <- orientation_combined %>% 
+  arrange(desc(Percent_25))
+```
+
+```{r}
+colnames(orientation_combined) <- c("Orientation", 
+                                    "Count", "Percent", 
+                                    "Count", "Percent",
+                                    "Count", "Percent")
+```
+
+```{r sex ori table}
+orientation_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Sexual orientation</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Sexual orientation}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+The three most commonly reported sexual orientations did not changes across years, however, we see across 3 years the reporting of straight declining and the bisexual population increasing. According to an Oregon Live article, [the Oregon LGBTQ+ population is 7.8%](https://www.oregonlive.com/living/2023/12/oregon-has-more-lgbtq-residents-per-capita-than-any-other-state-in-the-us-report.html), with the national population at about 5.6%. That said, the LGBTQ+ population at SOAK is larger than the general population.
+
+### Relationship Orientation
+
+```{r graph relationship orientation}
+#plot percent of people
+relation_df25 %>%
+  ggplot(aes(x = Relationship, 
+             y = Percent, 
+             fill = Relationship)) +
+  geom_bar(stat = "identity", 
+           color = "black", 
+           alpha = 0.9) +
+  scale_fill_brewer(palette = "Spectral") +
+  labs(
+    x = "Relationship orientation",
+    y = "Participant percentage",
+    title = "\nRelationship orientation reported by individuals"
+  ) +
+   geom_text(aes(label = sprintf("%.1f%%", Percent)),
+            position = position_stack(vjust = 0.5),
+            size = 3.5, color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+```
+
+Monogamous was the most common relationship orientation at 38.3%, followed by polyamorous at 31.1%, (which is a large increase from 2024 which was 23.9%), then non-monogamous. Survey takers were not able to select multiple responses in 2025. 
+
+```{r}
+# merge the two tables
+rel_combined <- merge(rel_combined, relation_df25, 
+                      by = "Relationship", 
+                      all = TRUE)
+```
+
+```{r}
+rel_combined <- rel_combined %>%
+  select(-Category)
+```
+
+```{r}
+colnames(rel_combined) <- c("Relationship", 
+                            "Count_23", "Percent_23", 
+                            "Count_24", "Percent_24",
+                            "Count_25", "Percent_25")
+```
+
+```{r}
+# Define recategorization rules
+rel_combined$Category <- with(rel_combined, case_when(
+  Relationship %in% c("Aromantic", "Celibate") ~ "Neither",
+  Relationship %in% c("Monogamish", 
+                      "Non-monogamous", 
+                      "Open relationship", 
+                      "Polyamorous", 
+                      "Relationship anarchist", 
+                      "Relationship fluid") ~ "Non-monogamous",
+  Relationship == "Monogamous" ~ "Monogamous",
+  Relationship == "Multiple responses" ~ "Multiple responses",
+  Relationship == "Unsure/Questioning" ~ "Unsure/Questioning",
+  Relationship == "Omitted" ~ "Omitted",
+  TRUE ~ "Other"
+))
+```
+
+```{r}
+# Aggregate the counts and percentages by the new category
+rel_simple <- rel_combined %>%
+  group_by(Category) %>%
+  summarise(
+    Count_23 = sum(Count_23, na.rm = TRUE),
+    Percent_23 = sum(Percent_23, na.rm = TRUE),
+    Count_24 = sum(Count_24, na.rm = TRUE),
+    Percent_24 = sum(Percent_24, na.rm = TRUE),
+    Count_25 = sum(Count_25, na.rm = TRUE),
+    Percent_25 = sum(Percent_25, na.rm = TRUE)
+  ) %>%
+  arrange(desc(Count_25))  # Optional: Arrange by count in 2023
+```
+
+```{r long relationship ori}
+# Reshape the data into long format
+rel_long <- rel_simple %>%
+  pivot_longer(
+    cols = c("Percent_23", 
+             "Percent_24",
+             "Percent_25"),
+    names_to = "year",
+    values_to = "percent"
+  ) %>%
+  mutate(year = recode(year, 
+                       "Percent_23" = "2023", 
+                       "Percent_24" = "2024",
+                       "Percent_25" = "2025"))
+```
+
+``` {r longitudinal relationship orientation plot, echo=F}
+# Create spaghetti plot
+rel_long %>% 
+  #filter(Relationship != "Omitted") %>% 
+  ggplot(aes(x = year, 
+             y = percent, 
+             group = Category, 
+             color = Category, 
+             shape = Category)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "Relationship orientation over time",
+       x = "Year",
+       y = "Total particpants (%)",
+       color = "Relationship orientation",
+       shape = "Relationship orientation",
+       caption = "Non-monogamous is combined here to include all reported practices \n of non-monogamy, such as polyamorous and open relationship") +
+  theme_classic() +
+  scale_color_brewer(palette = "Paired") +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels if needed
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+```{r}
+rel_simple <- rel_simple %>% 
+  arrange(desc(Percent_25))
+```
+
+```{r}
+colnames(rel_simple) <- c("Orientation", 
+                          "Count", "Percent", 
+                          "Count", "Percent",
+                          "Count", "Percent")
+```
+
+```{r rel ori table}
+rel_simple %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Primary relationship orientation</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Primary relationship orientation}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+All practices of the larger non-monogamy umbrella were combined for the above longitudinal graph and table to simplify our understanding of SOAK participants. Aromantic and celibate were categorized under "Neither". Survey takers were not able to select multiple responses in 2025. 
+
+A [2023 YouGov Poll](https://d3nkl3psvxxpe9.cloudfront.net/documents/Monogamy_NonMonogamy_Relationships_Toplines_crosstabs.pdf) found that 55% of Americans align as monogamous, compared to SOAK's 38.3%. This is a decrease from 2024, when 39.1% were monogamous.
+
+<br>
+
+# Event Preferences and Practices
+
+## Transportation and Lodging
+
+### Arrival Time
+```{r arrival date and time}
+time_counts25 <- data_2025 %>%
+  count(time_arrival, name = "Count")
+
+time_counts25$Percent <- round((time_counts25$Count / sum(time_counts25$Count) * 100), digits = 1)
+```
+
+```{r arrival at census}
+chronological_order <- c(
+  "Before Wednesday",
+  "Wednesday 9 AM - 1 PM",
+  "Wednesday 1 PM - 5 PM",
+  "Wednesday 5 PM - 9 PM",
+  "Thursday 9 AM - 1 PM",
+  "Thursday 1 PM - 5 PM",
+  "Thursday 5 PM - 9 PM",
+  "Friday 10 AM - 2 PM",
+  "Friday 2 PM - 6 PM",
+  "Omitted"
+)
+
+time_cumulative25 <- data_2025 %>%
+  count(time_arrival, name = "Count") %>%
+  mutate(
+    time_arrival = factor(time_arrival, 
+                          levels = chronological_order)  # Reorder factor
+  ) %>%
+  arrange(time_arrival) %>%  # Ensure correct order
+  mutate(
+    Percent = round(Count / sum(Count) * 100, 1),  # Calculate percentage and round
+    CumulativePercent = round(cumsum(Percent), 1)  # Calculate cumulative percent and round
+  )
+```
+<br>
+```{r}
+time_counts25 %>%
+  mutate(
+    time_arrival = factor(
+      time_arrival,
+      levels = chronological_order
+    )
+  ) %>%
+  filter(time_arrival != "Omitted") %>%
+  ggplot(aes(x = time_arrival, y = Percent)) +
+  geom_bar(stat = "identity",
+           fill = "purple",
+           color = "black",
+           alpha = 0.7) +
+  labs(
+    title = "Distribution of Census arrival times",
+    x = "Time of arrival",
+    y = "Number of participants (%)"
+  ) +
+  theme_classic() +
+  theme(
+    text = element_text(size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5)
+  )
+```
+<br>
+
+```{r}
+time_cumulative <- time_cumulative %>%
+  mutate(
+    arrival_daytime = case_when(
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "AM") ~ "Wednesday morning",
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "2 PM - 6 PM") ~ "Wednesday afternoon",
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "6 PM - 10 PM") ~ "Wednesday evening",
+
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "AM") ~ "Thursday morning",
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "2 PM - 6 PM") ~ "Thursday afternoon",
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "6 PM - 10 PM") ~ "Thursday evening",
+
+      str_detect(Arrival, "Friday") & str_detect(Arrival, "AM") ~ "Friday morning",
+      str_detect(Arrival, "Friday") & str_detect(Arrival, "2 PM - 6 PM") ~ "Friday afternoon",
+
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+```{r}
+colnames(time_cumulative25)[1] <- "Arrival"
+```
+
+```{r}
+time_cumulative25 <- time_cumulative25 %>%
+  mutate(
+    arrival_daytime = case_when(
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "Before") ~ "Before Wednesday",
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "AM") ~ "Wednesday morning",
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "1 PM - 5 PM") ~ "Wednesday afternoon",
+      str_detect(Arrival, "Wednesday") & str_detect(Arrival, "5 PM - 9 PM") ~ "Wednesday evening",
+
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "AM") ~ "Thursday morning",
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "1 PM - 5 PM") ~ "Thursday afternoon",
+      str_detect(Arrival, "Thursday") & str_detect(Arrival, "5 PM - 9 PM") ~ "Thursday evening",
+
+      str_detect(Arrival, "Friday") & str_detect(Arrival, "AM") ~ "Friday morning",
+      str_detect(Arrival, "Friday") & str_detect(Arrival, "PM") ~ "Friday afternoon",
+
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+```{r}
+arrival_combined <- merge(
+  time_cumulative,
+  time_cumulative25,
+  by = "arrival_daytime",
+  all = TRUE
+)
+```
+
+```{r}
+arrival_combined <- arrival_combined %>%
+  rename(
+    CumulativePercent_2024 = CumulativePercent.x,
+    CumulativePercent_2025 = CumulativePercent.y
+  )
+```
+
+```{r}
+arrival_long <- arrival_combined %>%
+  filter(arrival_daytime != "Omitted") %>%
+  pivot_longer(
+    cols = starts_with("CumulativePercent_"),
+    names_to = "year",
+    values_to = "CumulativePercent"
+  ) %>%
+  mutate(
+    year = recode(
+      year,
+      "CumulativePercent_2024" = "2024",
+      "CumulativePercent_2025" = "2025"
+    )
+  )
+```
+
+```{r}
+chronological_order <- c(
+  "Before Wednesday",
+  "Wednesday morning",
+  "Wednesday afternoon",
+  "Wednesday evening",
+  "Thursday morning",
+  "Thursday afternoon",
+  "Thursday evening",
+  "Friday morning",
+  "Friday afternoon"
+)
+```
+
+```{r}
+arrival_long <- arrival_long %>%
+  mutate(
+    arrival_daytime = factor(
+      arrival_daytime,
+      levels = chronological_order
+    )
+  )
+```
+
+```{r}
+arrival_long %>%
+  ggplot(aes(
+    x = arrival_daytime,
+    y = CumulativePercent,
+    color = year,
+    group = year
+  )) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  labs(
+    title = "Cumulative distribution of Census participant arrival times",
+    x = "Day and time of arrival",
+    y = "Cumulative percentage (%)",
+    color = "Year"
+  ) +
+  scale_y_continuous(limits = c(0, 100)) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    panel.border = element_rect(color = "black", fill = NA, size = 0.5)
+  )
+```
+
+```{r day time arrive table}
+# arrival_combined %>% 
+#   select(-last_col()) %>% 
+#   kbl(caption = if (knitr::is_html_output()) {
+#       "<span style='font-size: 16px;'>Date and time of arrival</span>"
+#     } else if (knitr::is_latex_output()) {
+#       "\\textbf{\\large Date and time of arrival}"
+#     }) %>%
+#   add_header_above(c(" " = 1, "2024" = 2)) %>% 
+#   kable_classic() %>% 
+#   kable_styling(latex_options = "H")
+```
+<br>
+
+```{r transportation and RV}
+# create df only containing transp and RV data
+transpo_rv_25 <- data_2025 %>%
+  select(arrive, rv)
+
+arrive_25 <- table(transpo_rv_25$arrive)
+arrive_25 <- as.data.frame(arrive_25)
+colnames(arrive_25) <- c("Arrival", "Count")
+arrive_25$Percent <- round((arrive_25$Count / sum(arrive_25$Count) * 100), digits = 1)
+
+rv_25 <- table(transpo_rv_25$rv)
+rv_25 <- as.data.frame(rv_25)
+colnames(rv_25) <- c("Sleeping", "Count")
+rv_25$Percent <- round((rv_25$Count / sum(rv_25$Count) * 100), digits = 1)
+```
+
+### Transportation Method
+
+```{r transportation pie chart}
+#maths for pie chart
+pie_labels_transpo <- arrive_25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+arrive_25 %>% 
+  ggplot(aes(x = "", 
+             y = Percent, 
+             fill = fct_inorder(Arrival))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Pastel1") +
+  geom_label_repel(data = pie_labels_transpo,
+                   aes(y = pos, 
+                       label = paste0(Percent, "%")),
+                   size = 4.5, 
+                   nudge_x = 1, 
+                   show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Question: How did you arrive?")) +
+  ggtitle("\n\nTransportation method: Most participants carpooled") +
+  labs(caption = paste(sum(arrive_25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5))
+```
+
+```{r longitudinal transportation}
+# # Create a new row with NA values
+# new_row <- data.frame(Arrival = NA, Count = NA, Percent = NA)
+# 
+# # Insert the new row at the second index
+# arrive <- rbind(arrive[1:2, ], new_row, arrive[-(1:2), ])
+```
+
+```{r combine arrive}
+arrive_df <- cbind(arrive, arrive_24)
+
+colnames(arrive_df)[1] <- "Transportation method"
+colnames(arrive_df)[2] <- "2023 Count"
+colnames(arrive_df)[3] <- "2023 Percent"
+colnames(arrive_df)[4] <- "Transportation method 2024"
+colnames(arrive_df)[5] <- "2024 Count"
+colnames(arrive_df)[6] <- "2024 Percent"
+```
+
+```{r}
+arrival_combined <- arrive_df %>%
+  left_join(
+    arrive_25,
+    by = c("Transportation method 2024" = "Arrival")
+  )
+```
+
+```{r}
+colnames(arrival_combined)[7] <- "2025 Count"
+colnames(arrival_combined)[8] <- "2025 Percent"
+```
+
+```{r create cumulative carpool totals}
+# Calculate totals for carpooled
+total_carpooled <- arrival_combined %>%
+  filter(grepl("carpooled", 
+               `Transportation method`, 
+               ignore.case = TRUE)) %>%
+  summarize(
+    `Transportation method` = "Total carpooled",
+    `2023 Count` = sum(`2023 Count`, na.rm = TRUE),   # Raw count for 2023
+    `2023 Percent` = sum(`2023 Percent`, na.rm = TRUE),
+    `Transportation method 2024` = "Total carpooled",
+    `2024 Count` = sum(`2024 Count`, na.rm = TRUE),   # Raw count for 2024
+    `2024 Percent` = sum(`2024 Percent`, na.rm = TRUE),
+    `2025 Count` = sum(`2025 Count`, na.rm = TRUE),   # Raw count for 2025
+    `2025 Percent` = sum(`2025 Percent`, na.rm = TRUE)
+  )
+
+# Calculate totals for drove solo
+total_drove_solo <- arrival_combined %>%
+  filter(grepl("drove", 
+               `Transportation method`, 
+               ignore.case = TRUE)) %>%
+  summarize(
+    `Transportation method` = "Total drove solo",
+    `2023 Count` = sum(`2023 Count`, na.rm = TRUE),   # Raw count for 2023
+    `2023 Percent` = sum(`2023 Percent`, na.rm = TRUE),
+    `Transportation method 2024` = "Total drove solo",
+    `2024 Count` = sum(`2024 Count`, na.rm = TRUE),   # Raw count for 2024
+    `2024 Percent` = sum(`2024 Percent`, na.rm = TRUE),
+    `2025 Count` = sum(`2025 Count`, na.rm = TRUE),   # Raw count for 2025
+    `2025 Percent` = sum(`2025 Percent`, na.rm = TRUE)
+  )
+
+# Combine original data with totals
+arrival_combined <- bind_rows(arrival_combined, 
+                       total_carpooled, 
+                       total_drove_solo)
+```
+
+```{r reshape arrival}
+spaghetti_data <- arrival_combined %>%
+  filter(`Transportation method` %in% c("Total carpooled", "Total drove solo")) %>%
+  select(`Transportation method`, `2023 Percent`, `2024 Percent`, `2025 Percent`)
+
+# Reshape the data to long format for ggplot
+spaghetti_data_long <- spaghetti_data %>%
+  pivot_longer(
+    cols = c(`2023 Percent`, `2024 Percent`, `2025 Percent`),
+    names_to = "Year",
+    values_to = "Percent"
+  ) %>%
+  mutate(Year = sub(" Percent", "", Year))
+```
+
+```{r longitudinal arrival}
+# Create the spaghetti plot
+spaghetti_data_long %>% 
+  ggplot(aes(x = Year, 
+             y = Percent, 
+             color = `Transportation method`, 
+             group = `Transportation method`)) +
+  geom_line(size = 1.2) +    # Line for each group
+  geom_point(size = 3) +    # Points at each year
+  scale_color_manual(
+    values = c(
+      "Total carpooled" = "darkgreen",
+      "Total drove solo" = "grey"
+    )
+  ) +
+  labs(
+    title = "How did you arrive at SOAK?",
+    x = "Year",
+    y = "Total participants who \n carpooled or drove solo (%)",
+    color = "Transportation Method"
+  ) +
+  theme_classic() +
+  theme(plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+        panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5),
+        panel.spacing = unit(0.1, "lines"),
+        legend.position = "right")
+```
+
+```{r}
+arrival_combined <- arrival_combined %>% 
+  arrange(desc(`2025 Percent`))
+```
+
+```{r}
+colnames(arrival_combined) <- c("Transportation method", 
+                         "Count", "Percent", 
+                         "Transportation method", 
+                         "Count", "Percent",
+                         "Count", "Percent")
+```
+
+```{r}
+arrival_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How did you arrive at SOAK?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How did you arrive at SOAK?}"
+    }, 
+    row.names = FALSE) %>% 
+  add_header_above(c("2023" = 3, 
+                     "2024" = 3,
+                     "2025" = 2)) %>%  # Ensure 6 columns (3 for 2023, 2 for 2024)
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+The majority (67.5%) of participants carpooled to SOAK, although this was a decrease from 2023 and 2024. Vehicle passes were instituted in 2024, but there was an increase in those who drove solo for each year since. This is more than Burning Man, where [in 2024 only 19.2% of Burners drove solo](https://blackrockcitycensus.org/travel#how-many-people-were-in-your-vehicle-when-you-arrived-at-the-gate).
+
+### Sleeping Arrangement and RV Opinions
+
+```{r RV pie chart}
+#maths for pie chart
+pie_labels_rv <- rv_25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+rv_25 %>% 
+  ggplot(aes(x = "", y = Percent, 
+             fill = fct_inorder(Sleeping))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Pastel1") +
+  geom_label_repel(data = pie_labels_rv,
+                   aes(y = pos, 
+                       label = paste0(Percent, "%")),
+                   size = 4.5, 
+                   nudge_x = 1, 
+                   show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Response")) +
+  ggtitle("\n\n\nWill you be staying in an RV or camping vehicle?") +
+  labs(caption = paste(sum(rv_25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5))
+```
+
+```{r}
+colnames(rv_25)[1] <- "Response"
+```
+
+```{r longitudinal camping vehicles}
+rv_combined <- merge(
+  rv_combined,
+  rv_25,
+  by = "Response",
+  all = TRUE
+)
+```
+
+```{r}
+names(rv_combined) <- make.unique(names(rv_combined))
+```
+
+```{r long rv}
+# Reshape the data into long format
+rv_long <- rv_combined %>%
+  pivot_longer(
+    cols = c("Percent.x", "Percent.x.1", "Percent.y"),
+    names_to = "year",
+    values_to = "percent"
+  ) %>%
+  mutate(
+    year = recode(
+      year,
+      "Percent.x"   = "2023",
+      "Percent.x.1" = "2024",
+      "Percent.y"   = "2025"
+    )
+  )
+```
+
+``` {r longitudinal rv plot}
+# Create spaghetti plot
+rv_long %>% 
+  filter(Response != "Omitted") %>% 
+  ggplot(aes(x = year, 
+             y = percent, 
+             group = Response, 
+             color = Response)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "Are you staying in an RV?",
+       x = "Year",
+       y = "Total particpants (%)",
+       color = "Response") +
+  theme_classic() +
+  scale_color_brewer(palette = "Set1") +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+```{r}
+rv_combined <- rv_combined %>% 
+  arrange(desc(Percent.y))
+```
+
+```{r rv renaming}
+colnames(rv_combined) <- c("Response", 
+                         "Count", "Percent",
+                         "Count", "Percent",
+                         "Count", "Percent")
+```
+
+```{r rv table}
+rv_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Will you be staying in an RV or camping vehicle?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Will you be staying in an RV or camping vehicle?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+This question bakes in an opinion in addition to gaining information on how participants sleep at SOAK. Only 12.4% of participants stayed in an RV or camping vehicle, which is an increase from the previous year. Of those who did not stay in RVs, most did not have an opinion on their presence at SOAK.
+
+### Ticket Acquisition
+
+```{r ticketing 2025}
+#count occurrences
+ticket_counts_25 <- table(data_2025$ticket)
+
+#convert the result to a data frame
+tickets_25 <- data.frame(tickets = names(ticket_counts_25), 
+                         count = as.numeric(ticket_counts_25))
+colnames(tickets_25) <- c("Ticket", "Count")
+tickets_25$Percent <- round((tickets_25$Count / sum(tickets_25$Count) * 100), digits = 1)
+```
+
+```{r ticket plot}
+#plot ticket sales
+tickets_25 %>% 
+  ggplot(aes(x = Ticket, 
+             y = Percent, 
+             fill = Ticket)) +
+  geom_bar(stat = "identity", 
+           color = "black") +
+  scale_fill_brewer(palette = "PRGn") + 
+  labs(
+    x = "Acquisition method",
+    y = "Participants (%)",
+    title = "\nHow did you acquire your SOAK ticket?") +
+   geom_text(aes(label = sprintf("%.1f%%", Percent)), 
+            position = position_stack(vjust = 0.5), 
+            size = 3.5, color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1),
+        panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5)) +
+  guides(fill = FALSE)
+```
+
+```{r tix for table}
+tix_combined <- merge(
+  tix_combined,
+  tickets_25,
+  by = "Ticket",
+  all = TRUE
+)
+```
+
+```{r}
+names(tix_combined) <- make.unique(names(tix_combined))
+```
+
+```{r}
+tix_combined <- tix_combined %>% 
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(tix_combined) <- c("Response", 
+                         "Count", "Percent",
+                         "Count", "Percent",
+                         "Count", "Percent")
+```
+
+```{r the table}
+tix_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How did you acquire your SOAK ticket?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How did you acquire your SOAK ticket?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+The above table is organized in descending order of 2025 Percent values. Ticket acquisition for SOAK remained mostly done through directed group sales (DGS) at 30% in 2025, followed by purchased through the main sale at 19.9%. In 2025 fewer folks obtained their ticket through paying back their friend, which was the 2nd most common way to get a ticket in 2024.
+
+Subsidized tickets (Burning Man's version of the ticket aid program) accounted for 3.6%.
+
+### SOAK Location
+
+```{r move}
+#counting occurrences 2025
+move_counts_25 <- table(data_2025$move)
+
+#convert the result to a data frame
+move_25 <- data.frame(move = names(move_counts_25), count = as.numeric(move_counts_25))
+
+colnames(move_25) <- c("Move", "Count")
+move_25$Percent <- round((move_25$Count / sum(move_25$Count) * 100), digits = 1)
+```
+
+```{r}
+names(move_combined) <- make.unique(names(move_combined))
+```
+
+```{r}
+move_combined <- move_combined %>%
+  left_join(
+    move_25,
+    by = c("Response" = "Move")
+  )
+```
+
+```{r move chart}
+#maths for pie chart
+pie_labels_move <- move_25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+move_25 %>% 
+  ggplot(aes(x = "", 
+             y = Percent, 
+             fill = fct_inorder(Move))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "Paired") +
+  geom_label_repel(data = pie_labels_move,
+                   aes(y = pos, 
+                       label = paste0(Percent, "%")),
+                   size = 4.5, 
+                   nudge_x = 1, 
+                   show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Response")) +
+  ggtitle("\nWould you attend SOAK if it moved location?") +
+  labs(caption = paste(sum(move_25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5))
+```
+
+```{r}
+colnames(move_combined) <- c("Response", 
+                         "Count", "Percent",
+                         "Count", "Percent",
+                         "Count", "Percent")
+```
+
+```{r}
+move_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Would you attended SOAK if it moved location?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Would you attended SOAK if it moved location?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+Most participants (60%) would follow SOAK if it moved. Cautiously, 37.1% might attend SOAK if it moved. Perhaps location-dependent? Only a small fraction, 1.3%, claimed they would not attend SOAK if it left Justesen Ranch in Tygh Valley. These values are relatively consistent since 2023.
+
+### Participation
+
+```{r participation 2025}
+# rows (sometimes) store several responses
+# parse them out
+participate_list_25 <- strsplit(data_2025$participate, ",")
+participate_unlist_25 <- unlist(participate_list_25)
+party_occurrences_25 <- table(participate_unlist_25)
+participate_df_25 <- as.data.frame(party_occurrences_25)
+
+# volunteering as soak lead, director, or producer were categorized separately due to commas - combine
+colnames(participate_df_25) <- c("Participation", "Count")
+
+# manually replacing value with original full value
+participate_df_25$Participation <- as.character(participate_df_25$Participation)
+participate_df_25[9,1] <- "Volunteering as SOAK lead, director, or producer"
+
+# add rows that were combined
+participate_df_25[9,2] <- sum(participate_df_25$Count[c(1, 2, 9)])
+
+# drop rows 1 and 2
+participate_df_25 <- participate_df_25[-c(1, 2), ]
+
+participate_df_25$Percent <- round(participate_df_25$Count / 914 * 100, 1)
+```
+
+```{r part graph}
+participate_df_25$Participation <- factor(participate_df_25$Participation,
+                                       levels = participate_df_25$Participation[order(participate_df_25$Count, 
+                                                                                      decreasing = TRUE)])
+
+participate_df_25 %>% 
+  ggplot(aes(x = Participation,
+             y = Count,
+             fill = Participation)) +
+  geom_bar(stat = "identity",
+           color = "black") +
+  scale_fill_brewer(palette = "BrBG") +
+  labs(x = "How participants participate",
+       y = "Number of times reported",
+       title = "\nHow will you participate this year?") +
+  geom_text(aes(label = Count), 
+            position = position_stack(vjust = 0.5), 
+            size = 3.5, 
+            color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1),
+        panel.border = element_rect(color = "black", 
+                                    fill = NA, 
+                                    size = 0.5)) +
+  guides(fill = FALSE)
+```
+
+```{r}
+names(part_combined) <- make.unique(names(part_combined))
+```
+
+```{r move combined}
+part_combined <- part_combined %>%
+  left_join(
+    participate_df_25,
+    by = c("Response" = "Participation")
+  )
+```
+
+```{r long participation}
+# Reshape the data into long format
+part_long <- part_combined %>%
+  pivot_longer(cols = c("Percent.x", 
+                        "Percent.1", 
+                        "Percent.y"), 
+               names_to = "year", 
+               values_to = "percent") %>%
+  mutate(year = recode(year, 
+                       "Percent.x" = "2023", 
+                       "Percent.1" = "2024",
+                       "Percent.y" = "2025"))
+```
+
+```{r part long graph}
+part_long %>% 
+  filter(Response != "Omitted") %>% 
+  ggplot(aes(x = year, 
+             y = percent, 
+             group = Response, 
+             color = Response,
+             shape = Response)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +  # Optional, to emphasize points
+  labs(title = "How will you participate this year?",
+       x = "Year",
+       y = "Total particpants (%)",
+       color = "Response",
+       shape = "Response") +
+  theme_classic() +
+  scale_color_brewer(palette = "Paired") +
+  scale_x_discrete(expand = c(0.2, 0)) +  # Control x-axis padding
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+```{r}
+part_combined <- part_combined %>% 
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(part_combined) <- c("Response", 
+                         "Count", "Percent",
+                         "Count", "Percent",
+                         "Count", "Percent")
+```
+
+```{r}
+part_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How will you participate this year?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How will you participate this year?}"
+    }, 
+    row.names = FALSE) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+How did you participate at SOAK in 2025? Participants could select more than one option, therefore the percent here is out of participants and not responses (totaling above 100). Most people helped bring a theme camp! A total of 57.1% reported bringing a theme camp, which is an increase from 2024 and more aligned with the responses in 2023. Second to bringing a camp, 48.4% of people reported interacting with art or theme camps, which increased the last 2 years.
+
+The least common forms of participation were volunteering as a lead, director, producer, or board member. [Volunteerism in Black Rock City claimed 13.5% of Burners in 2024](https://blackrockcitycensus.org/regionals_media_volunteering#volunteered-in-the-last-year), but 21.9% of SOAKers volunteered with 1 or more SOAK department. This is a decrease from 2024, where 27.6% of participants volunteered. Taken together with ticket acquisition method, more folks are volunteering and obtaining a gift ticket through their volunteer hours year to year.
+
+### Sustainability
+
+```{r}
+# rows (sometimes) store several responses
+# parse them out
+sustain_list <- strsplit(data_2025$sustain, ",")
+sustain_unlist <- unlist(sustain_list)
+sustain_occurrences25 <- table(sustain_unlist)
+sustain_df25 <- as.data.frame(sustain_occurrences25)
+```
+
+```{r}
+sustain_df25 <- sustain_df25 %>%
+  mutate(
+    sustain_unlist = fct_collapse(
+      sustain_unlist,
+      Omitted = c("Omitted", "Decline to answer")
+    )
+  )
+```
+
+```{r}
+sustain_df25 <- sustain_df25 %>%
+  group_by(sustain_unlist) %>%
+  summarise(
+    Count = sum(Freq, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#be mindful of hard coding here
+colnames(sustain_df25) <- c("Sustainability", "Count")
+sustain_df25$Percent <- round(sustain_df25$Count / 914 * 100, 1)
+```
+
+```{r sustain plot}
+sustain_df25$Sustainability <- factor(sustain_df25$Sustainability,
+                                    levels = sustain_df25$Sustainability[order(sustain_df25$Percent,
+                                                                             decreasing = TRUE)])
+sustain_df25 %>%
+  ggplot(aes(x = Sustainability,
+             y = Percent,
+             fill = Sustainability)) +
+  geom_bar(stat = "identity",
+           color = "black") +
+  scale_fill_brewer(palette = "YlGn") +
+  labs(x = "Sustainability method",
+       y = "Percent of surveyed individuals",
+       title = "\nHow are you contributing to sustainability at SOAK?") +
+  geom_text(aes(label = sprintf("%.1f%%", 
+                                Percent)),
+            position = position_stack(vjust = 0.5),
+            size = 3.5, 
+            color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, 
+                                   hjust = 1)) +
+  guides(fill = FALSE)
+```
+
+```{r}
+# merge the two tables
+sustain_combined <- merge(
+  sustain_combined,
+  sustain_df25,
+  by = "Sustainability",
+  all = TRUE
+)
+```
+
+```{r}
+names(sustain_combined) <- make.unique(names(sustain_combined))
+```
+
+```{r}
+sustain_combined <- sustain_combined  %>%
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(sustain_combined) <- c("Sustainability", 
+                                "Count", "Percent", 
+                                "Count", "Percent",
+                                "Count", "Percent")
+```
+
+```{r sustain table}
+sustain_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How are you contributing to sustainability?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How are you contributing to sustainability?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+### Inclusion of Minors
+
+```{r minors 2025}
+# create df only containing bringing kids data
+kids25 <- data_2025 %>%
+  select(kids, teens)
+
+kids_counts <- table(kids25$kids)
+teens_counts <- table(kids25$teens)
+
+#convert the result to a data frame
+kids_25 <- data.frame(kids = names(kids_counts), count = as.numeric(kids_counts))
+teens_25 <- data.frame(teens = names(teens_counts), count = as.numeric(teens_counts))
+
+# Replace "Omitted" with 0 for easier handling
+kids_25$kids <- as.character(kids_25$kids) # Ensure 'kids' is treated as a character column
+kids_25$kids[kids_25$kids == "Omitted"] <- "0"
+```
+
+```{r}
+# Create a new column categorizing "Yes" and "No/Omitted"
+kids_25$category <- ifelse(kids_25$kids == 0, "No/Omitted", "Yes")
+```
+
+```{r}
+# Summarize the counts by category
+kids_25_simple <- kids_25 %>%
+  group_by(category) %>%
+  summarise(Count = sum(count, na.rm = TRUE)) %>%
+  ungroup()
+
+# Rename columns to match your desired output
+kids_25_simple <- kids_25_simple %>%
+  rename(Kids = category)
+```
+
+```{r}
+kids_25_simple$Percent <- round((kids_25_simple$Count / sum(kids_25_simple$Count) * 100), digits = 1)
+```
+
+```{r teens 24}
+# Replace "Omitted" with 0 for easier handling
+teens_25$teens <- as.character(teens_25$teens)
+teens_25$teens[teens_25$teens == "Omitted"] <- "0"
+
+# Create a new column categorizing "Yes" and "No/Omitted"
+teens_25$category <- ifelse(teens_25$teens == 0, "No/Omitted", "Yes")
+```
+
+```{r}
+# Summarize the counts by category
+teens_25_simple <- teens_25 %>%
+  group_by(category) %>%
+  summarise(Count = sum(count, na.rm = TRUE)) %>%
+  ungroup()
+
+# Rename columns to match your desired output
+teens_25_simple <- teens_25_simple %>%
+  rename(Teens = category)
+```
+
+```{r counting participants who brought teens}
+teens_25_simple$Percent <- round((teens_25_simple$Count / sum(teens_25_simple$Count) * 100), 
+                                 digits = 1)
+```
+
+```{r minors graphed}
+#maths for pie chart
+pie_labels_kids <- kids_25_simple %>%
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+kids_25_simple %>%
+  ggplot(aes(x = "", 
+             y = Percent, 
+             fill = fct_inorder(Kids))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "PiYG") +
+  geom_label_repel(data = pie_labels_kids,
+                   aes(y = pos, label = paste0(Percent, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Brought children")) +
+  ggtitle("\nHow many participants reported bringing any children") +
+  labs(caption = paste(sum(kids_25_simple$Count), "participants, omitted and 0 responses combined \n")) +
+  theme_void()
+```
+
+```{r}
+#maths for pie chart
+pie_labels_teens <- teens_25_simple %>%
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+teens_25_simple %>%
+  ggplot(aes(x = "", y = Percent, fill = fct_inorder(Teens))) +
+  geom_col(width = 1, color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "PRGn") +
+  geom_label_repel(data = pie_labels_teens,
+                   aes(y = pos, label = paste0(Percent, "%")),
+                   size = 4.5, nudge_x = 1, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Brought teenagers")) +
+  ggtitle("\nHow many participants reported bringing any teenagers") +
+  labs(caption = paste(sum(teens_25_simple$Count), "participants, omitted and 0 responses combined\n")) +
+  theme_void()
+```
+
+```{r total minors brought to soak}
+kids_25 <- kids_25 %>%
+  mutate(
+    kids_n = case_when(
+      kids == "0" ~ 0,
+      kids == "1" ~ 1,
+      kids == "2" ~ 2,
+      kids == "3" ~ 3,
+      kids == "4 or more children" ~ 4,
+      TRUE ~ NA_real_
+    )
+  )
+
+# Filter rows with category == "Yes" and calculate totals for kids
+kids_total <- sum(
+  kids_25$kids_n[kids_25$category == "Yes"] * 
+    kids_25$count[kids_25$category == "Yes"],
+  na.rm = TRUE
+)
+```
+
+```{r}
+teens_25 <- teens_25 %>%
+  mutate(
+    teens_n = case_when(
+      teens == "0" ~ 0,
+      teens == "1" ~ 1,
+      teens == "2" ~ 2,
+      teens == "3" ~ 3,
+      teens == "4 or more teenagers" ~ 4,
+      TRUE ~ NA_real_
+    )
+  )
+
+# Filter rows with category == "Yes" and calculate totals for teens
+teens_total <- sum(
+  teens_25$teens_n[teens_25$category == "Yes"] * 
+    teens_25$count[teens_25$category == "Yes"],
+  na.rm = TRUE
+)
+```
+
+```{r}
+# Create the minors_counted data frame
+minors_counted <- data.frame(
+  kids_total = kids_total,
+  teens_total = teens_total
+)
+```
+
+```{r longitudinal yes minors}
+longitudinal_minors <- data.frame(
+  Year = rep(c(2023, 2024, 2025), 
+             each = 2),
+  Category = rep(c("Children", 
+                   "Teens"), 
+                 times = 3),
+  Percent = c(
+    kids_2$Percent[kids_2$Kids == "Yes"],
+    teens$Percent[teens$Teens == "Yes"],
+    kids_24_simple$Percent[kids_24_simple$Kids == "Yes"],
+    teens_24_simple$Percent[teens_24_simple$Teens == "Yes"],
+    kids_25_simple$Percent[kids_25_simple$Kids == "Yes"],
+    teens_25_simple$Percent[teens_25_simple$Teens == "Yes"]
+  )
+)
+```
+
+```{r}
+# Create the longitudinal plot
+longitudinal_minors %>% 
+  ggplot(aes(x = Year, 
+             y = Percent, 
+             group = Category, 
+             color = Category)) +
+  geom_line(size = 1) +
+  geom_point(size = 3) +
+  scale_x_continuous(breaks = c(2023, 2024, 2025)) +
+  scale_color_manual(values = c("Children" = "#87CEFA", 
+                                "Teens" = "#FFA07A")) +
+  labs(
+    title = "Participants who reported bringing minors",
+    x = "Year",
+    y = "Percent",
+    color = "Category") +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+    theme(
+          plot.margin = unit(c(0.5, 0.5, 0.1, 0.5), "cm"),  # Tighter plot margin
+          axis.title.x = element_text(vjust = -0.5),   # Adjust x-axis label spacing
+          axis.title.y = element_text(vjust = 0.5),    # Adjust y-axis label spacing
+          axis.ticks.length = unit(-0.15, "cm"),            # Move ticks closer to axis
+          panel.border = element_rect(color = "black", fill = NA, size = 0.5),
+          panel.spacing = unit(0.1, "lines"))
+```
+
+Most participants do not bring minors with them to SOAK. Compared to Burning Man in 2024, [5.2% of Burners reported ever bringing someone under 18 years of age](https://blackrockcitycensus.org/perspectives#bringing-children-under-18-years-old), SOAKers have a higher rate of brining minors. 
+
+```{r}
+# # Convert minors_counted to a data frame suitable for plotting
+# minors_plot <- data.frame(
+#   Category = c("Children", "Teens"),
+#   Total = c(minors_counted$kids_total, 
+#             minors_counted$teens_total)
+# )
+# 
+# # Create the bar plot
+# ggplot(minors_plot, aes(x = Category, 
+#                         y = Total, 
+#                         fill = Category)) +
+#   geom_bar(stat = "identity", 
+#            color = "black", 
+#            width = 0.6) +
+#   scale_fill_manual(values = c("Children" = "#87CEFA", 
+#                                "Teens" = "#FFA07A")) +
+#   geom_text(aes(label = Total), 
+#             vjust = 2.5, 
+#             color = "black", 
+#             size = 4) +
+#   labs(
+#     title = "Total counts of minors reportedly brought by participants",
+#     x = "Age group",
+#     y = "Total count",
+#     fill = "Category"
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     plot.title = element_text(hjust = 0.5),
+#     legend.position = "none" # Remove legend
+#   )
+```
+
+## Town Hall and Burning Man
+
+### Town Hall
+
+```{r townhall}
+#counting occurrences
+townhall_counts_25 <- table(data_2025$townhall)
+
+#convert the result to a data frame
+townhall_25 <- data.frame(move = names(townhall_counts_25), 
+                          count = as.numeric(townhall_counts_25))
+
+colnames(townhall_25) <- c("Response", "Count")
+townhall_25$Percent <- round((townhall_25$Count / sum(townhall_25$Count) * 100), digits = 1)
+```
+
+```{r}
+names(townhall_combined) <- make.unique(names(townhall_combined))
+```
+
+```{r townhall longitudinal}
+# combine townhall dfs
+townhall_combined <- merge(
+  townhall_combined,
+  townhall_25,
+  by = "Response",
+  all = TRUE
+)
+```
+
+```{r town pie}
+#maths for pie chart
+pie_labels_town <- townhall_25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+#the plot
+townhall_25 %>% 
+  ggplot(aes(x = "", 
+             y = Percent, 
+             fill = fct_inorder(Response))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "RdYlBu") +
+  geom_label_repel(data = pie_labels_town,
+                   aes(y = pos, 
+                       label = paste0(Percent, "%")),
+                   size = 4.5, 
+                   nudge_x = 1, 
+                   show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Question: Did you attend Town Hall?")) +
+  ggtitle("\nMost participants did not attend Town Hall ") +
+  labs(caption = paste(sum(townhall_25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+    theme(panel.border = element_rect(color = "black", 
+                                      fill = NA, 
+                                      size = 0.5))
+```
+
+```{r}
+colnames(townhall_combined) <- c("Response", 
+                                "Count", "Percent", 
+                                "Count", "Percent",
+                                "Count", "Percent")
+```
+<br>
+```{r}
+townhall_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Did you attend Town Hall?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Did you attend Town Hall?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+<br>
+
+Only 6.1% of people attended SOAK's Town Hall in February, 2025, which is more than in 2024. Most people reported not attending (80.1%), followed by a lack of knowing what Town Hall is (12.9%). This year more people knew what Town Hall was but still did not attend.
+
+### Burning Man
+
+```{r bm}
+#counting occurrences 2025
+bm_counts_25<- table(data_2025$bm)
+
+#convert the result to a data frame
+burning_man_25 <- data.frame(move = names(bm_counts_25), count = as.numeric(bm_counts_25))
+
+colnames(burning_man_25) <- c("BM", "Count")
+burning_man_25$Percent <- round((burning_man_25$Count / sum(burning_man_25$Count) * 100), digits = 1)
+```
+
+```{r}
+names(bm_combined) <- make.unique(names(bm_combined))
+
+colnames(burning_man_25) <- c("Response", "Count", "Percent")
+
+# combine bm dfs
+bm_combined <- merge(bm_combined,
+                     burning_man_25,
+                     by = "Response",
+                     all = TRUE
+                     )
+```
+
+```{r}
+# rename the columns
+bm_combined <- bm_combined %>%
+  rename("2023 Percent" = Percent.x, 
+         "2024 Percent" = Percent.1, 
+         "2025 Percent" = Percent.y) %>%
+  select(
+    `Response`,
+    `2023 Percent`, 
+    `2024 Percent`,
+    `2025 Percent`)
+```
+
+```{r burning pie}
+#maths for pie chart
+pie_labels_bm <- burning_man_25 %>% 
+  mutate(csum = rev(cumsum(rev(Percent))),
+         pos = Percent/2 + lead(csum, 1),
+         pos = if_else(is.na(pos), Percent/2, pos))
+
+burning_man_25 %>% 
+  ggplot(aes(x = "", 
+             y = Percent, 
+             fill = fct_inorder(Response))) +
+  geom_col(width = 1, 
+           color = 1) +
+  coord_polar(theta = "y") +
+  scale_fill_brewer(palette = "BuPu") +
+  geom_text(data = pie_labels_bm,
+            aes(y = pos, 
+                label = paste0(Percent, "%")),
+            size = 4.5, show.legend = FALSE) +
+  guides(fill = guide_legend(title = "Question: Do you plan \n to go to Burning Man this year?")) +
+  ggtitle("\nMost participants did not plan to go to Burning Man ") +
+  labs(caption = paste(sum(burning_man_25$Count), "participants, including omitted responses \n")) +
+  theme_void() +
+  theme(panel.border = element_rect(color = "black", fill = NA, size = 0.5))
+```
+
+```{r}
+# colnames(bm_combined)[1] <- "Response"
+# colnames(bm_combined)[4] <- "Count"
+# colnames(bm_combined)[5] <- "Percent"
+```
+
+```{r}
+bm_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>Do you plan to attend Burning Man this year?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large Do you plan to attend Burning Man this year?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 1, 
+                     "2024" = 1,
+                     "2025" = 1)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+The majority of participants (62.1%) did not plan to go to Burning Man in 2025, followed by 23.9% who planned to go.
+
+### Communication
+
+```{r}
+# create df only containing communication data
+comm25 <- data_2025 %>%
+  select(info)
+```
+
+```{r}
+# Clean and standardize the data
+comm25 <- comm25 %>%
+  mutate(
+    info = info %>%
+      trimws() %>%                             # Remove leading/trailing spaces
+      gsub(" +", " ", .)                   # Remove multiple spaces
+  )
+```
+
+```{r}
+# rows (sometimes) store several responses
+# parse them out
+comm_list <- strsplit(comm25$info, ",")
+comm_unlist <- unlist(comm_list)
+comm_occurrences25 <- table(comm_unlist)
+comm_df25 <- as.data.frame(comm_occurrences25)
+
+colnames(comm_df25) <- c("Information", 
+                         "Count")
+comm_df25$Percent <- round(comm_df25$Count / sum(comm_df25$Count) * 100, 1)
+```
+
+```{r}
+comm_df25$Information <- factor(comm_df25$Information,
+                                    levels = comm_df25$Information[order(comm_df25$Percent,
+                                                                             decreasing = TRUE)])
+comm_df25 %>%
+  ggplot(aes(x = Information,
+             y = Count,
+             fill = Information)) +
+  geom_bar(stat = "identity",
+           color = "black") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(x = "Information method",
+       y = "Number of times reported",
+       title = "\nHow participants received SOAK related information") +
+  geom_text(aes(label = Count),
+            position = position_stack(vjust = 0.5),
+            size = 3.5, color = "black") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  guides(fill = FALSE)
+```
+
+```{r}
+# merge the two tables
+comm_combined <- merge(comm_combined, comm_df25, 
+                       by = "Information", 
+                       all = TRUE)
+```
+
+```{r}
+names(comm_combined) <- make.unique(names(comm_combined))
+```
+
+```{r}
+comm_combined <- comm_combined  %>%
+  arrange(desc(Percent.y))
+```
+
+```{r}
+colnames(comm_combined) <- c("Information", 
+                             "Count", "Percent", 
+                             "Count", "Percent",
+                             "Count", "Percent")
+```
+
+```{r comm table}
+comm_combined %>% 
+  kbl(caption = if (knitr::is_html_output()) {
+      "<span style='font-size: 16px;'>How did you receive SOAK related information?</span>"
+    } else if (knitr::is_latex_output()) {
+      "\\textbf{\\large How did you receive SOAK related information?}"
+    }) %>%
+  add_header_above(c(" " = 1, 
+                     "2023" = 2, 
+                     "2024" = 2,
+                     "2025" = 2)) %>% 
+  kable_classic(full_width = FALSE) %>% 
+  kable_styling(
+    latex_options = c("hold_position", 
+                      "scale_down"),
+    font_size = 12
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  column_spec(1, width = "5cm")
+```
+
+SOAK's mailing list and website are how most folks receive SOAK information. 
+
+```{r}
+save.image("C:/Users/Amanda Welch/Desktop/SOAK/SOAK23_24_25.RData")
+```
